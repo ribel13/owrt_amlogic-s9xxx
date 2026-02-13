@@ -5,7 +5,7 @@ inputs:
   mode:
     description: "Select script."
     required: false
-    default: "jerbe"
+    default: "ophub"
   openwrt_path:
     description: "Select armvirt64 file path."
     required: false
@@ -78,7 +78,6 @@ runs:
         [[ -n "${{ inputs.kernel_repo }}" ]] && make_command="${make_command} -r ${{ inputs.kernel_repo }}"
         [[ -n "${{ inputs.openwrt_size }}" ]] && make_command="${make_command} -s ${{ inputs.openwrt_size }}"
         [[ -n "${{ inputs.releases_token }}" ]] && make_command="${make_command} -g ${{ inputs.releases_token }}"
-        # [[ -n "${{ inputs.gh_token }}" ]] && make_command="${make_command} -g ${{ inputs.gh_token }}"
         sudo ./make ${make_command}
 
         cd ${GITHUB_ACTION_PATH}

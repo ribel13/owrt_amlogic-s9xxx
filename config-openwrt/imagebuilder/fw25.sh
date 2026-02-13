@@ -40,7 +40,7 @@
 make_path="${PWD}"
 openwrt_dir="openwrt"
 imagebuilder_path="${make_path}/${openwrt_dir}"
-#custom_files_path="${make_path}/config-openwrt/imagebuilder/files"
+custom_files_path="${make_path}/config-openwrt/imagebuilder/files"
 custom_config_file="${make_path}/config-openwrt/imagebuilder/config"
 
 # Set default parameters
@@ -64,16 +64,17 @@ download_imagebuilder() {
     echo -e "${STEPS} Start downloading OpenWrt files..."
 
     # Downloading imagebuilder files
-    if [[ "${op_sourse}" == "openwrt" ]]; then
-        download_file="https://downloads.openwrt.org/releases/${op_branch}/targets/armsr/armv8/openwrt-imagebuilder-${op_branch}-armsr-armv8.Linux-x86_64.tar.zst"
+    if [[ "${op_sourse}" == "immortalwrt" ]]; then
+        download_url="immortalwrt.kyarucloud.moe"
     else
-        download_file="https://downloads.immortalwrt.org/releases/${op_branch}/targets/armvirt/64/immortalwrt-imagebuilder-${op_branch}-armvirt-64.Linux-x86_64.tar.zst"
+        download_url="downloads.openwrt.org"
     fi
-    wget -q ${download_file}
-    [[ "${?}" -eq "0" ]] || error_msg "Wget download failed: [ ${download_file} ]"
+    download_file="https://${download_url}/releases/${op_branch}/targets/armsr/armv8/${op_sourse}-imagebuilder-${op_branch}-armsr-armv8.Linux-x86_64.tar.zst"
+    curl -fsSOL ${download_file}
+    [[ "${?}" -eq "0" ]] || error_msg "Download failed: [ ${download_file} ]"
 
     # Unzip and change the directory name
-    tar -xJf *-imagebuilder-* && sync && rm -f *-imagebuilder-*.tar.xz
+    tar -I zstd -xvf *-imagebuilder-*.tar.zst -C . && sync && rm -f *-imagebuilder-*.tar.zst
     mv -f *-imagebuilder-* ${openwrt_dir}
 
     sync && sleep 3

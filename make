@@ -83,11 +83,12 @@ script_repo="https://github.com/ophub/luci-app-amlogic/tree/main/luci-app-amlogi
 script_repo="${script_repo//tree\/main/trunk}"
 
 # Set the kernel download repository from github.com
-kernel_repo="jerbe/armbian_kernel"
-# Set the list of kernels used by default
+kernel_repo="https://github.com/ribel13/kernel"
+# Set the tags(kernel_xxx) of the default kernel that can be replaced via the [ -u ] parameter
+default_tags="stable"
+kernel_usage=""
+# Set the list of kernels used by default(Selectable version)
 stable_kernel=("6.6.y" "6.12.y")
-rk3588_kernel=("5.10.1")
-h6_kernel=("6.1.1")
 # Set to automatically use the latest kernel
 auto_kernel="true"
 

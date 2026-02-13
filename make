@@ -67,12 +67,13 @@ host_release="$(cat /etc/os-release | grep '^VERSION_CODENAME=.*' | cut -d'=' -f
 op_release="etc/flippy-openwrt-release"
 
 # Dependency files download repository
-depends_repo="https://github.com/jerbe/armbian_amlogic-s9xxx/tree/main/build-armbian"
+# depends_repo="https://github.com/jerbe/armbian_amlogic-s9xxx/tree/main/build-armbian"
+depends_repo="https://github.com/ophub/armbian_amlogic-s9xxx/tree/main/build-armbian"
 # Convert depends repository address to svn format
 depends_repo="${depends_repo//tree\/main/trunk}"
 
 # Firmware files download repository
-firmware_repo="https://github.com/jerbe/armbian_firmware/tree/main/firmware"
+firmware_repo="https://github.com/ophub/armbian_firmware/tree/main/firmware"
 # Convert firmware repository address to svn format
 firmware_repo="${firmware_repo//tree\/main/trunk}"
 
@@ -84,7 +85,7 @@ script_repo="${script_repo//tree\/main/trunk}"
 # Set the kernel download repository from github.com
 kernel_repo="jerbe/armbian_kernel"
 # Set the list of kernels used by default
-stable_kernel=("6.1.1" "5.15.1")
+stable_kernel=("6.6.y" "6.12.y")
 rk3588_kernel=("5.10.1")
 h6_kernel=("6.1.1")
 # Set to automatically use the latest kernel

@@ -9,7 +9,7 @@ inputs:
   openwrt_path:
     description: "Select armvirt64 file path."
     required: false
-    default: "openwrt/bin/targets/*/*/*rootfs.tar.gz"
+    default: "openwrt/bin/targets/*/*/*rootfs.tar.zst"
   openwrt_board:
     description: "Select device board."
     required: false

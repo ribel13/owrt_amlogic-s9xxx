@@ -17,7 +17,7 @@ inputs:
   openwrt_kernel:
     description: "Select kernel version."
     required: false
-    default: "6.1.1_5.15.1"
+    default: "6.6.y_6.12.y"
   auto_kernel:
     description: "Auto use the latest kernel."
     required: false
@@ -25,12 +25,13 @@ inputs:
   kernel_repo:
     description: "Select kernel repository."
     required: false
-    default: "https://github.com/jerbe/armbian_kernel/tree/main/pub"
+    default: "https://github.com/ribel13/kernel"
+    #default: "https://github.com/jerbe/armbian_kernel/tree/main/pub"
   openwrt_size:
     description: "Set the rootfs size(Unit: MiB)."
     required: false
     default: "1024"
-  gh_token:
+  releases_token:
     description: "Set the token."
     required: false
     default: ""
@@ -76,7 +77,8 @@ runs:
         [[ -n "${{ inputs.auto_kernel }}" ]] && make_command="${make_command} -a ${{ inputs.auto_kernel }}"
         [[ -n "${{ inputs.kernel_repo }}" ]] && make_command="${make_command} -r ${{ inputs.kernel_repo }}"
         [[ -n "${{ inputs.openwrt_size }}" ]] && make_command="${make_command} -s ${{ inputs.openwrt_size }}"
-        [[ -n "${{ inputs.gh_token }}" ]] && make_command="${make_command} -g ${{ inputs.gh_token }}"
+        [[ -n "${{ inputs.releases_token }}" ]] && make_command="${make_command} -g ${{ inputs.releases_token }}"
+        # [[ -n "${{ inputs.gh_token }}" ]] && make_command="${make_command} -g ${{ inputs.gh_token }}"
         sudo ./make ${make_command}
 
         cd ${GITHUB_ACTION_PATH}

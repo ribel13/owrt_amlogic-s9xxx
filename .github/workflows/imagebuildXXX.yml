@@ -264,17 +264,18 @@ on:
           - FRDMX
 
 env:
-  TZ: Etc/UTC
-  IMAGEBUILDER_SH: config/imagebuilder/fw25.sh
+  TZ: America/New_York
+  #IMAGEBUILDER_SH: config-openwrt/imagebuilder/imagebuilder.sh
+  IMAGEBUILDER_SH: config-openwrt/imagebuilder/fw25.sh
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
-    if: ${{ github.event.repository.owner.id == github.event.sender.id }}
+    runs-on: ubuntu-22.04
+    if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v3
 
       - name: Initialization environment
         id: init

@@ -6,7 +6,7 @@
 #                https://downloads.immortalwrt.org/releases
 #=====================================================================================
 
-name: Build OpenWrt with ImageBuilder
+name: Build25
 
 on:
   repository_dispatch:
@@ -32,9 +32,6 @@ on:
         default: "6.6.y"
         type: choice
         options:
-          - 5.4.y
-          - 5.10.y
-          - 5.15.y
           - 6.1.y
           - 6.6.y
           - 6.12.y

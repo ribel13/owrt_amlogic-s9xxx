@@ -1,5 +1,5 @@
 name: "Make OpenWrt"
-author: "https://github.com/jerbe/openwrt_amlogic-s9xxx"
+author: "https://github.com/ribel13/openwrt_amlogic-s9xxx"
 description: "Support Amlogic, Rockchip and Allwinner boxes."
 inputs:
   mode:

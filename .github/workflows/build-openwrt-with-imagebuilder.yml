@@ -137,14 +137,27 @@ jobs:
           sudo timedatectl set-timezone "${{ env.TZ }}"
           echo "status=success" >> "$GITHUB_OUTPUT"
 
-      - name: Build Rootfs with Image Builder
+      #- name: Build Rootfs with Image Builder
+        #id: imagebuilder
+        #if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
+        #run: |
+          #RELEASES_BRANCH="${{ inputs.releases_branch }}"
+          #chmod +x ${IMAGEBUILDER_SH}
+          #${IMAGEBUILDER_SH} ${RELEASES_BRANCH}
+          #echo "RELEASES_TAG=${RELEASES_BRANCH/:/_}" >> ${GITHUB_ENV}
+          #echo "status=success" >> ${GITHUB_OUTPUT}
+      - name: Build Rootfs with Image Builder.
         id: imagebuilder
-        if: ${{ steps.init.outputs.status }} == 'success' && !cancelled()
+        if: ${{ steps.init.outputs.status == 'success' && !cancelled() }}
         run: |
           RELEASES_BRANCH="${{ inputs.releases_branch }}"
           chmod +x ${IMAGEBUILDER_SH}
           ${IMAGEBUILDER_SH} ${RELEASES_BRANCH}
-          echo "RELEASES_TAG=${RELEASES_BRANCH/:/_}" >> ${GITHUB_ENV}
+          echo "build_tag=OpenWrt_imagebuilder_${RELEASES_BRANCH/:/_}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
+          # Add symbolic link
+          [[ -d "/builder/openwrt" ]] || mkdir -p /builder/openwrt
+          ln -sf /builder/openwrt /home/runner/work/_actions/ophub/amlogic-s9xxx-openwrt/main/openwrt
+          df -hT ${PWD}
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Clean up server space

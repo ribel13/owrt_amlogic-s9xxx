@@ -42,11 +42,12 @@ runs:
     - shell: bash
       run: |
         cd ${GITHUB_ACTION_PATH}
-        echo -e "jerbe package actions path: ${PWD}"
+        echo -e " ophub package actions path: ${PWD}"
 
         openwrt_filename="${{ inputs.openwrt_path }}"
-        openwrt_savepath="openwrt-armvirt"
-        openwrt_outpath="out"
+        openwrt_savepath="openwrt-armsr"
+        openwrt_outpath="openwrt/out"
+        
         echo -e "Get openwrt file input parameters: [ ${openwrt_filename} ]"
         [[ -z "${openwrt_filename}" ]] && echo -e "The [ openwrt_path ] variable must be specified." && exit 1
         [[ -d "${openwrt_savepath}" ]] || mkdir -p ${openwrt_savepath}

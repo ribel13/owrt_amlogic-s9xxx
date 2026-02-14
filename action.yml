@@ -1,5 +1,5 @@
 name: "Make OpenWrt"
-author: "https://github.com/ophub/amlogic-s9xxx-openwrt"
+author: "https://github.com/ribel13/openwrt_amlogic-s9xxx"
 description: "Support Amlogic, Rockchip and Allwinner boxes."
 inputs:
   mode:
@@ -14,28 +14,25 @@ inputs:
     description: "Select device board."
     required: false
     default: "all"
-  kernel_repo:
-    description: "Select kernel repository."
-    required: false
-    default: "ophub/kernel"
-  kernel_usage:
-    description: "Set the tags of the stable kernel."
-    required: false
-    default: "stable"
   openwrt_kernel:
     description: "Select kernel version."
     required: false
-    default: "6.1.y_6.12.y"
+    default: "6.6.y_6.12.y"
   auto_kernel:
     description: "Auto use the latest kernel."
     required: false
     default: "true"
+  kernel_repo:
+    description: "Select kernel repository."
+    required: false
+    default: "https://github.com/ribel13/kernel"
+    #default: "https://github.com/jerbe/armbian_kernel/tree/main/pub"
   openwrt_size:
     description: "Set the rootfs size(Unit: MiB)."
     required: false
-    default: ""
-  builder_name:
-    description: "Set OpenWrt builder signature."
+    default: "1024"
+  gh_token:
+    description: "Set the token."
     required: false
     default: ""
 
@@ -68,25 +65,18 @@ runs:
             fi
         fi
         sync
-        echo -e "About the [ ${openwrt_savepath} ] directory: \n$(ls -lh ${openwrt_savepath} 2>/dev/null)"
+        echo -e "About the ${openwrt_savepath} directory: \n$(ls -l ${openwrt_savepath} 2>/dev/null)"
 
-        cd ${{ github.action_path }}
+        cd ${GITHUB_ACTION_PATH}
         echo -e "Start to make openwrt..."
         make_command=""
         [[ -n "${{ inputs.openwrt_board }}" ]] && make_command="${make_command} -b ${{ inputs.openwrt_board }}"
-        [[ -n "${{ inputs.kernel_repo }}" ]] && make_command="${make_command} -r ${{ inputs.kernel_repo }}"
-        [[ -n "${{ inputs.kernel_usage }}" ]] && make_command="${make_command} -u ${{ inputs.kernel_usage }}"
         [[ -n "${{ inputs.openwrt_kernel }}" ]] && make_command="${make_command} -k ${{ inputs.openwrt_kernel }}"
         [[ -n "${{ inputs.auto_kernel }}" ]] && make_command="${make_command} -a ${{ inputs.auto_kernel }}"
+        [[ -n "${{ inputs.kernel_repo }}" ]] && make_command="${make_command} -r ${{ inputs.kernel_repo }}"
         [[ -n "${{ inputs.openwrt_size }}" ]] && make_command="${make_command} -s ${{ inputs.openwrt_size }}"
-        [[ -n "${{ inputs.builder_name }}" ]] && make_command="${make_command} -n ${{ inputs.builder_name }}"
+        [[ -n "${{ inputs.gh_token }}" ]] && make_command="${make_command} -g ${{ inputs.gh_token }}"
         sudo ./make ${make_command}
-
-        cd ${{ github.action_path }}/${openwrt_outpath}
-        # Generate a sha256sum verification file for each OpenWrt image file
-        for file in *; do [[ -f "${file}" ]] && sha256sum "${file}" >"${file}.sha" 2>/dev/null; done
-        rm -f *.sha.sha 2>/dev/null
-        sync && sleep 3
 
         cd ${GITHUB_ACTION_PATH}
         echo -e "Output environment variables."

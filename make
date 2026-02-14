@@ -66,17 +66,19 @@ arch_info="$(uname -m)"
 host_release="$(cat /etc/os-release | grep '^VERSION_CODENAME=.*' | cut -d'=' -f2)"
 # Add custom OpenWrt firmware information
 op_release="etc/flippy-openwrt-release"
+ophub_release_file="etc/ophub-release"
 
 # Dependency files download repository
-# depends_repo="https://github.com/jerbe/armbian_amlogic-s9xxx/tree/main/build-armbian"
-depends_repo="https://github.com/ophub/armbian_amlogic-s9xxx/tree/main/build-armbian"
-# Convert depends repository address to svn format
-depends_repo="${depends_repo//tree\/main/trunk}"
+depends_repo="https://github.com/ophub/amlogic-s9xxx-armbian"
+# U-BOOT files download repository
+uboot_repo="https://github.com/syntax-xidz/u-boot"
+# Firmware files download repository
+firmware_repo="https://github.com/ophub/firmware"
 
 # Firmware files download repository
-firmware_repo="https://github.com/ophub/armbian_firmware/tree/main/firmware"
+# firmware_repo="https://github.com/ophub/armbian_firmware/tree/main/firmware"
 # Convert firmware repository address to svn format
-firmware_repo="${firmware_repo//tree\/main/trunk}"
+# firmware_repo="${firmware_repo//tree\/main/trunk}"
 
 # Install/Update script files download repository
 # script_repo="https://github.com/ophub/luci-app-amlogic/tree/main/luci-app-amlogic/root/usr/sbin"
@@ -85,13 +87,25 @@ firmware_repo="${firmware_repo//tree\/main/trunk}"
 
 # Set the kernel download repository from github.com
 kernel_repo="https://github.com/ribel13/kernel"
+# kernel_repo="https://github.com/ophub/kernel"
 # Set the tags(kernel_xxx) of the default kernel that can be replaced via the [ -u ] parameter
 default_tags="stable"
 kernel_usage=""
 # Set the list of kernels used by default(Selectable version)
-stable_kernel=("6.6.y" "6.12.y")
+stable_kernel=("6.1.y" "6.6.y" "6.12.y")
+flippy_kernel=(${stable_kernel[@]})
+dev_kernel=(${stable_kernel[@]})
+dbai_kernel=(${stable_kernel[@]})
+beta_kernel=(${stable_kernel[@]})
+rk3588_kernel=("6.1.y")
+rk35xx_kernel=("6.1.y")
+h6_kernel=("6.6.y")
+specific_6xy=("6.1.y" "6.6.y" "6.12.y")
+specific_5xy=("5.10.y" "5.15.y")
 # Set to automatically use the latest kernel
 auto_kernel="true"
+# Initialize the kernel array
+declare -A tags_list
 
 # Initialize the build device
 make_board="all"

@@ -144,10 +144,10 @@ custom_config() {
 
     config_list=""
     if [[ -s "${custom_config_file}" ]]; then
-        config_list="$(cat ${custom_config_file} 2>/dev/null | grep -E "^CONFIG_PACKAGE_.*=y" | sed -e 's/CONFIG_PACKAGE_//g' -e 's/=y//g' -e 's/[ ][ ]*//g' | tr '\n' ' ')"
+        config_list="$(sed -n 's/^CONFIG_PACKAGE_\(.*\)=y$/\1/p' "${custom_config_file}" | tr '\n' ' ')"
         echo -e "${INFO} Custom config list: \n$(echo "${config_list}" | tr ' ' '\n')"
     else
-        #echo -e "${INFO} No custom config was added."
+        echo -e "${INFO} No custom config was added."
     fi
 }
 

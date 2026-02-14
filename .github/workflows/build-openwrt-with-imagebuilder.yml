@@ -156,7 +156,7 @@ jobs:
 
       - name: Build OpenWrt firmware
         if: ${{ steps.imagebuilder.outputs.status }} == 'success' && !cancelled()
-        uses: ophub/openwrt_amlogic-s9xxx@main
+        uses: ribel13/amlogic-s9xxx-openwrt@main
         with:
           openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
           openwrt_board: ${{ inputs.openwrt_board }}

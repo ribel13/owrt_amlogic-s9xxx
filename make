@@ -5,33 +5,30 @@
 # License version 2. This program is licensed "as is" without any
 # warranty of any kind, whether express or implied.
 #
-# This file is a part of the Remake OpenWrt
-# https://github.com/ophub/amlogic-s9xxx-openwrt
+# This file is a part of the make OpenWrt for Amlogic and Rockchip
+# https://github.com/jerbe/openwrt_amlogic-s9xxx
 #
-# Description: Automatically Packaged OpenWrt
+# Description: Automatically Packaged OpenWrt for Amlogic and Rockchip
 # Copyright (C) 2020~ https://github.com/openwrt/openwrt
 # Copyright (C) 2020~ https://github.com/coolsnowwolf/lede
 # Copyright (C) 2020~ https://github.com/immortalwrt/immortalwrt
 # Copyright (C) 2020~ https://github.com/unifreq/openwrt_packit
-# Copyright (C) 2021~ https://github.com/ophub/amlogic-s9xxx-armbian/blob/main/CONTRIBUTORS.md
-# Copyright (C) 2020~ https://github.com/ophub/amlogic-s9xxx-openwrt
+# Copyright (C) 2021~ https://github.com/jerbe/armbian_amlogic-s9xxx/blob/main/CONTRIBUTORS.md
+# Copyright (C) 2020~ https://github.com/jerbe/openwrt_amlogic-s9xxx
 #
-# Command: sudo ./remake
+# Command: sudo ./make
 # Command optional parameters please refer to the source code repository
 #
 #======================================== Functions list ========================================
 #
 # error_msg          : Output error message
 # process_msg        : Output process message
-# mount_try          : Mount the image file, fail again
 # get_textoffset     : Get kernel TEXT_OFFSET
 #
 # init_var           : Initialize all variables
-# check_data         : Check the validity of the data
-# find_openwrt       : Find OpenWrt file (openwrt-armsr/*rootfs.tar.gz)
-# git_pull_dir       : Download the files from the git repository
+# find_openwrt       : Find OpenWrt file (openwrt-armvirt/*rootfs.tar.gz)
 # download_depends   : Download the dependency files
-# query_kernel       : Query the latest kernel version
+# query_version      : Query the latest kernel version
 # check_kernel       : Check kernel files integrity
 # download_kernel    : Download the latest kernel
 #
@@ -49,88 +46,67 @@
 #
 # Related file storage path
 current_path="${PWD}"
-make_path="${current_path}/openwrt"
-tmp_path="${make_path}/tmp"
-out_path="${make_path}/out"
+tmp_path="${current_path}/tmp"
+out_path="${current_path}/out"
+# openwrt_path="${current_path}/openwrt-armvirt"
 openwrt_path="${current_path}/openwrt-armsr"
 openwrt_rootfs_file="*rootfs.tar.gz"
-resource_path="${current_path}/make-openwrt"
-kernel_path="${resource_path}/kernel"
-uboot_path="${resource_path}/u-boot"
-common_files="${resource_path}/openwrt-files/common-files"
-platform_files="${resource_path}/openwrt-files/platform-files"
-different_files="${resource_path}/openwrt-files/different-files"
+make_path="${current_path}/make-openwrt"
+kernel_path="${make_path}/kernel"
+uboot_path="${make_path}/u-boot"
+common_files="${make_path}/openwrt-files/common-files"
+platform_files="${make_path}/openwrt-files/platform-files"
+different_files="${make_path}/openwrt-files/different-files"
 firmware_path="${common_files}/lib/firmware"
 model_conf="${common_files}/etc/model_database.conf"
 model_txt="${common_files}/etc/model_database.txt"
-[[ -d "${make_path}" ]] || mkdir -p ${make_path}
 
 # System operation environment
 arch_info="$(uname -m)"
 host_release="$(cat /etc/os-release | grep '^VERSION_CODENAME=.*' | cut -d'=' -f2)"
-# Add personalized settings for special devices, such as [ s922x-oes-plus ]
-board_release_file="etc/openwrt-board-release.conf"
 # Add custom OpenWrt firmware information
 op_release="etc/flippy-openwrt-release"
-ophub_release_file="etc/ophub-release"
 
 # Dependency files download repository
-depends_repo="https://github.com/ophub/amlogic-s9xxx-armbian"
-# U-BOOT files download repository
-uboot_repo="https://github.com/syntax-xidz/u-boot"
+# depends_repo="https://github.com/jerbe/armbian_amlogic-s9xxx/tree/main/build-armbian"
+depends_repo="https://github.com/ophub/armbian_amlogic-s9xxx/tree/main/build-armbian"
+# Convert depends repository address to svn format
+depends_repo="${depends_repo//tree\/main/trunk}"
+
 # Firmware files download repository
-firmware_repo="https://github.com/ophub/firmware"
+firmware_repo="https://github.com/ophub/armbian_firmware/tree/main/firmware"
+# Convert firmware repository address to svn format
+firmware_repo="${firmware_repo//tree\/main/trunk}"
+
 # Install/Update script files download repository
-script_repo="https://github.com/ophub/luci-app-amlogic"
+# script_repo="https://github.com/ophub/luci-app-amlogic/tree/main/luci-app-amlogic/root/usr/sbin"
+# Convert script repository address to svn format
+# script_repo="${script_repo//tree\/main/trunk}"
 
 # Set the kernel download repository from github.com
 kernel_repo="https://github.com/ribel13/kernel"
-# kernel_repo="https://github.com/ophub/kernel"
-# kernel_repo="https://github.com/syntax-xidz/kernel"
 # Set the tags(kernel_xxx) of the default kernel that can be replaced via the [ -u ] parameter
 default_tags="stable"
 kernel_usage=""
 # Set the list of kernels used by default(Selectable version)
-stable_kernel=("6.1.y" "6.6.y" "6.12.y")
-flippy_kernel=(${stable_kernel[@]})
-dev_kernel=(${stable_kernel[@]})
-dbai_kernel=(${stable_kernel[@]})
-beta_kernel=(${stable_kernel[@]})
-rk3588_kernel=("6.1.y")
-rk35xx_kernel=("6.1.y")
-h6_kernel=("6.6.y")
-specific_6xy=("6.1.y" "6.6.y" "6.12.y")
-specific_5xy=("5.10.y" "5.15.y")
+stable_kernel=("6.6.y" "6.12.y")
 # Set to automatically use the latest kernel
 auto_kernel="true"
-# Initialize the kernel array
-declare -A tags_list
-
-# Set the Amlogic's u-boot series(u-boot-xxx.bin)
-uboot_meson_gxl=("p201.bin" "p212.bin" "s905x-s912.bin" "n1.bin" "r3300l.bin")
-uboot_meson_gxm=("p212.bin" "s905x-s912.bin" "zyxq.bin")
-uboot_meson_g12a=("x96max.bin" "e900v22c.bin" "b860h-v5.bin" "hg680-fj.bin")
-uboot_meson_g12b=("gtking.bin" "gtkingpro.bin" "gtkingpro-rev-a.bin" "s905x2-s922.bin")
-uboot_meson_sm1=("x96maxplus.bin" "ugoos-x3.bin" "tx3-qz.bin" "tx3-bz.bin" "skyworth-lb2004.bin")
-uboot_meson_gxbb=("p201.bin" "s905.bin")
-uboot_meson_sc2=("s905x4.bin")
-
-# Set OpenWrt default IP address
-openwrt_ip="192.168.1.1"
-ip_regex="^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 
 # Initialize the build device
 make_board="all"
+
 # Set OpenWrt firmware size (Unit: MiB, boot_mb >= 256, root_mb >= 512)
 boot_mb="256"
 root_mb="1024"
-# Set OpenWrt builder signature
-builder_name=""
+
+# Get gh_token for api.github.com
+gh_token=""
 
 # Set font color
 STEPS="[\033[95m STEPS \033[0m]"
 INFO="[\033[94m INFO \033[0m]"
-NOTE="[\033[93m NOTE \033[0m]"
+TIPS="[\033[93m TIPS \033[0m]"
 WARNING="[\033[93m WARNING \033[0m]"
 SUCCESS="[\033[92m SUCCESS \033[0m]"
 ERROR="[\033[91m ERROR \033[0m]"
@@ -138,43 +114,12 @@ ERROR="[\033[91m ERROR \033[0m]"
 #================================================================================================
 
 error_msg() {
-    echo -e " [💔] ${1}"
+    echo -e "${ERROR} ${1}"
     exit 1
 }
 
 process_msg() {
-    echo -e " [🌿] ${1}"
-}
-
-mount_try() {
-    # Check mount parameters
-    m_type="${1}"
-    m_dev="${2}"
-    m_target="${3}"
-    [[ -n "${m_type}" && -n "${m_dev}" && -n "${m_target}" ]] || {
-        error_msg "Mount parameter is missing: [ ${m_type}, ${m_dev}, ${m_target} ]"
-    }
-
-    t="1"
-    max_try="10"
-    while [[ "${t}" -le "${max_try}" ]]; do
-        # Mount according to the image partition format
-        if [[ "${m_type}" == "btrfs" ]]; then
-            mount -t ${m_type} -o discard,compress=zstd:6 ${m_dev} ${m_target} 2>/dev/null
-        else
-            mount -t ${m_type} -o discard ${m_dev} ${m_target} 2>/dev/null
-        fi
-
-        # Mount failed and continue trying
-        if [[ "${?}" -eq 0 ]]; then
-            break
-        else
-            sync && sleep 3
-            umount -f ${m_target} 2>/dev/null
-            ((t++))
-        fi
-    done
-    [[ "${t}" -gt "${max_try}" ]] && error_msg "[ ${t} ] attempts to mount failed."
+    echo -e " [\033[1;92m ${board} - ${kernel} \033[0m] ${1}"
 }
 
 get_textoffset() {
@@ -188,49 +133,25 @@ init_var() {
     echo -e "${STEPS} Start Initializing Variables..."
 
     # If it is followed by [ : ], it means that the option requires a parameter value
-    local options="b:r:u:k:a:p:s:n:"
-    parsed_args=$(getopt -o "${options}" -- "${@}")
-    [[ ${?} -ne 0 ]] && error_msg "Parameter parsing failed."
-    eval set -- "${parsed_args}"
+    get_all_ver="$(getopt "b:k:a:r:s:g:" "${@}")"
 
-    while true; do
+    while [[ -n "${1}" ]]; do
         case "${1}" in
         -b | --Board)
             if [[ -n "${2}" ]]; then
-                make_board="${2// /}"
-                shift 2
+                make_board="${2}"
+                shift
             else
                 error_msg "Invalid -b parameter [ ${2} ]!"
             fi
             ;;
-        -r | --kernelRepository)
-            if [[ -n "${2}" ]]; then
-                kernel_repo="${2}"
-                shift 2
-            else
-                error_msg "Invalid -r parameter [ ${2} ]!"
-            fi
-            ;;
-        -u | --kernelUsage)
-            if [[ -n "${2}" ]]; then
-                kernel_usage="${2//kernel_/}"
-                shift 2
-            else
-                error_msg "Invalid -u parameter [ ${2} ]!"
-            fi
-            ;;
         -k | --Kernel)
             if [[ -n "${2}" ]]; then
-                oldIFS="${IFS}"
-                IFS="_"
+                oldIFS=$IFS
+                IFS=_
                 stable_kernel=(${2})
-                flippy_kernel=(${2})
-                dev_kernel=(${2})
-                dbai_kernel=(${2})
-                beta_kernel=(${2})
-                specific_kernel=(${2})
-                IFS="${oldIFS}"
-                shift 2
+                IFS=$oldIFS
+                shift
             else
                 error_msg "Invalid -k parameter [ ${2} ]!"
             fi
@@ -238,175 +159,83 @@ init_var() {
         -a | --Autokernel)
             if [[ -n "${2}" ]]; then
                 auto_kernel="${2}"
-                shift 2
+                shift
             else
                 error_msg "Invalid -a parameter [ ${2} ]!"
             fi
             ;;
-        -p | --IP)
-            if [[ -n "${2}" && "${2}" =~ ${ip_regex} ]]; then
-                openwrt_ip="${2}"
-                shift 2
+        -r | --kernelRepository)
+            if [[ -n "${2}" ]]; then
+                kernel_repo="${2}"
+                shift
             else
-                error_msg "Invalid -p parameter [ ${2} ]!"
+                error_msg "Invalid -r parameter [ ${2} ]!"
             fi
             ;;
         -s | --Size)
-            if [[ -n "${2}" ]]; then
-                img_mb="${2}"
-                shift 2
+            if [[ -n "${2}" && "${2}" -ge "512" ]]; then
+                root_mb="${2}"
+                shift
             else
                 error_msg "Invalid -s parameter [ ${2} ]!"
             fi
             ;;
-        -n | --BuilderName)
+        -g | --Gh_token)
             if [[ -n "${2}" ]]; then
-                builder_name="${2// /}"
-                shift 2
+                gh_token="${2}"
+                shift
             else
-                error_msg "Invalid -n parameter [ ${2} ]!"
+                error_msg "Invalid -g parameter [ ${2} ]!"
             fi
             ;;
-        --)
-            shift
-            break
-            ;;
         *)
-            [[ -n "${1}" ]] && error_msg "Invalid option [ ${1} ]!"
-            break
+            error_msg "Invalid option [ ${1} ]!"
             ;;
         esac
+        shift
     done
 
-    # Set the image size, such as [ -s 512/2560 ] or [ -s 2560 ]
-    [[ -n "${img_mb}" ]] && {
-        if [[ "${img_mb}" =~ / ]]; then
-            boot_mb="${img_mb%%/*}"
-            root_mb="${img_mb##*/}"
-        else
-            root_mb="${img_mb}"
-        fi
-    }
-}
-
-check_data() {
     # Columns of ${model_conf}:
     # 1.ID  2.MODEL  3.SOC  4.FDTFILE  5.UBOOT_OVERLOAD  6.MAINLINE_UBOOT  7.BOOTLOADER_IMG  8.DESCRIPTION
-    # 9.KERNEL_TAGS  10.PLATFORM  11.FAMILY  12.BOOT_CONF  13.CONTRIBUTORS  14.BOARD  15.BUILD
-    [[ -f "${model_conf}" ]] || error_msg "Missing model config file: [ ${model_conf} ]"
-
-    # Convert ${model_conf} to ${model_txt} for [ openwrt-install-amlogic ], Just the first 8 columns.
-    cat ${model_conf} |
-        sed -e 's/NULL/NA/g' -e 's/[ ][ ]*//g' |
-        grep -E "^[^#ar].*" |
-        awk -F':' '{if ($6 != "NA") $6 = "/lib/u-boot/"$6; if ($7 != "NA") $7 = "/lib/u-boot/"$7; NF = 12; print}' OFS=':' \
-            >${model_txt}
+    # 9.KERNEL_TAGS  10.PLATFORM  11.FAMILY  12.BOOT_CONF  13.BOARD  14.BUILD
 
     # Get a list of build devices
-    if [[ "${make_board}" =~ ^(all|first50|range50_100|range100_150|last20)$ ]]; then
-        board_list=":(yes)"
+    if [[ "${make_board}" == "all" ]]; then
+        board_list=""
         make_openwrt=($(
             cat ${model_conf} |
                 sed -e 's/NA//g' -e 's/NULL//g' -e 's/[ ][ ]*//g' |
-                grep -E "^[^#].*:yes$" | awk -F':' '{print $14}' |
-                sort -u | xargs
+                grep -E "^[^#].*:yes$" | awk -F':' '{print $13}' |
+                sort | uniq | xargs
         ))
     else
-        board_list=":($(echo ${make_board} | sed -e 's/_/\|/g')):(yes|no)"
+        board_list=":($(echo ${make_board} | sed -e 's/_/\|/g'))"
         make_openwrt=($(echo ${make_board} | sed -e 's/_/ /g'))
     fi
-    [[ "${#make_openwrt[@]}" -eq 0 ]] && error_msg "The board is missing, stop making."
+    [[ "${#make_openwrt[*]}" -eq "0" ]] && error_msg "The board is missing, stop making."
 
-    # Select the first 50 boards
-    [[ "${make_board}" == "first50" ]] && {
-        make_openwrt=("${make_openwrt[@]:0:50}")
-        board_list=":($(echo ${make_openwrt[@]} | sed -e 's/ /\|/g')):(yes|no)"
-    }
-    # Select the boards from 51st to 100th
-    [[ "${make_board}" == "range50_100" ]] && {
-        make_openwrt=("${make_openwrt[@]:50:50}")
-        board_list=":($(echo ${make_openwrt[@]} | sed -e 's/ /\|/g')):(yes|no)"
-    }
-    # Select the boards from 101st to 150th
-    [[ "${make_board}" == "range100_150" ]] && {
-        make_openwrt=("${make_openwrt[@]:100:50}")
-        board_list=":($(echo ${make_openwrt[@]} | sed -e 's/ /\|/g')):(yes|no)"
-    }
-    # Select the last 20 boards
-    [[ "${make_board}" == "last20" ]] && {
-        make_openwrt=("${make_openwrt[@]: -20}")
-        board_list=":($(echo ${make_openwrt[@]} | sed -e 's/ /\|/g')):(yes|no)"
-    }
-
-    # Get the kernel array
+    # Get a list of kernel
     kernel_from=($(
         cat ${model_conf} |
-            sed -e 's/NA//g' -e 's/NULL//g' -e 's/[ ][ ]*//g' |
-            grep -E "^[^#].*${board_list}$" | awk -F':' '{print $9}' |
-            sort -u | xargs
+            sed -e 's/NA//g' -e 's/NULL//g' -e 's/[ ][ ]*//g' -e 's/\.y/\.1/g' |
+            grep -E "^[^#].*${board_list}:yes$" | awk -F':' '{print $9}' |
+            sort | uniq | xargs
     ))
-    [[ "${#kernel_from[@]}" -eq 0 ]] && error_msg "Missing [ KERNEL_TAGS ] settings, stop building."
-    # Replace custom kernel tags
-    [[ -n "${kernel_usage}" ]] && {
-        for ((i = 0; i < ${#kernel_from[@]}; i++)); do
-            if [[ ${kernel_from[${i}]} == "${default_tags}/"* ]]; then
-                kernel_from[${i}]="${kernel_from[${i}]//${default_tags}/${kernel_usage}}"
-            fi
-        done
-    }
+    [[ "${#kernel_from[*]}" -eq "0" ]] && error_msg "Missing [ KERNEL_TAGS ] settings, stop building."
 
-    # Convert the kernel_from to the kernel array
-    for item in "${kernel_from[@]}"; do
-        # Split the key and value
-        IFS='/' read -r key value <<<"${item}"
+    # The [ specified kernel ], Use the [ kernel version number ], such as 5.15.y, 6.1.y, etc. download from [ kernel_stable ].
+    specify_kernel=($(echo ${kernel_from[*]} | sed -e 's/[ ][ ]*/\n/g' | grep -E "^[0-9]+" | sort | uniq | xargs))
 
-        # Check if the value is "all".
-        if [[ "${value}" == "all" ]]; then
-            # If the value is "all", assign the value of ${key}_kernel. such as [ stable_kernel, rk3588_kernel, etc. ]
-            eval "value=\"\${${key}_kernel[@]}\""
-        elif [[ "${value}" =~ ^[1-9]+ ]]; then
-            if [[ "${value}" == "5.x.y" ]]; then
-                value="${specific_5xy[@]}"
-            elif [[ "${value}" == "6.x.y" ]]; then
-                value="${specific_6xy[@]}"
-            else
-                IFS='_' read -ra value <<<"${value}"
-                value="${value[@]}"
-            fi
-        fi
-
-        # If auto_kernel is false, use the value from -k parameter
-        if [[ ! "${auto_kernel}" =~ ^(true|yes)$ ]]; then
-            if [[ "${#specific_kernel[@]}" -eq 0 ]]; then
-                error_msg "Plase use the -k parameter to specify the kernel version."
-            else
-                value="${specific_kernel[@]}"
-            fi
-        fi
-
-        # Merge the same key values
-        if [[ -n "${tags_list[${key}]}" ]]; then
-            tags_list[${key}]+=" ${value}"
-        else
-            tags_list[${key}]="${value}"
-        fi
-    done
-
-    # Convert the tags_list array to the kernel array (remove duplicates)
-    for key in "${!tags_list[@]}"; do
-        # Convert the space-separated string to an array and remove duplicates
-        read -ra unique_values <<<"$(echo "${tags_list[${key}]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
-        # Assign the unique values back to the tags_list
-        tags_list[${key}]="${unique_values[@]}"
-    done
-
-    # Check the kernel tags list
-    [[ "${#tags_list[@]}" -eq 0 ]] && error_msg "The [ tags_list ] is missing, stop building."
-    echo -e "${INFO} The kernel tags list: [ ${!tags_list[@]} ]"
+    # The [ suffix ] of KERNEL_TAGS starts with a [ letter ], such as kernel_stable, kernel_rk3588, kernel_h6, etc.
+    tags_list=($(echo ${kernel_from[*]} | sed -e 's/[ ][ ]*/\n/g' | grep -E "^[a-z]" | sort | uniq | xargs))
+    # Add the specified kernel to the list
+    [[ "${#specify_kernel[*]}" -ne "0" ]] && tags_list=(${tags_list[*]} "specify")
+    # Check the kernel list
+    [[ "${#tags_list[*]}" -eq "0" ]] && error_msg "The [ tags_list ] is missing, stop building."
 
     # Convert kernel repository address to api format
     [[ "${kernel_repo}" =~ ^https: ]] && kernel_repo="$(echo ${kernel_repo} | awk -F'/' '{print $4"/"$5}')"
-    kernel_api="https://github.com/${kernel_repo}"
+    kernel_api="https://api.github.com/repos/${kernel_repo}"
 }
 
 find_openwrt() {
@@ -414,158 +243,150 @@ find_openwrt() {
     echo -e "${STEPS} Start searching for OpenWrt file..."
 
     # Find whether the OpenWrt file exists
-    openwrt_default_file="$(ls ${openwrt_path}/${openwrt_rootfs_file} 2>/dev/null | head -n 1 | awk -F "/" '{print $NF}')"
-    if [[ -n "${openwrt_default_file}" ]]; then
-        echo -e "${INFO} OpenWrt file: [ ${openwrt_default_file} ]"
+    openwrt_file_name="$(ls ${openwrt_path}/${openwrt_rootfs_file} 2>/dev/null | head -n 1 | awk -F "/" '{print $NF}')"
+    if [[ -n "${openwrt_file_name}" ]]; then
+        echo -e "${INFO} OpenWrt file: [ ${openwrt_file_name} ]"
     else
         error_msg "There is no [ ${openwrt_rootfs_file} ] file in the [ ${openwrt_path} ] directory."
     fi
 
     # Extract the OpenWrt release information file
+    source_codename=""
     source_release_file="etc/openwrt_release"
     temp_dir="$(mktemp -d)"
-    (cd ${temp_dir} && tar -mxzf "${openwrt_path}/${openwrt_default_file}" "./${source_release_file}" 2>/dev/null)
-    # Find custom parameters
+    (cd ${temp_dir} && tar -xzf "${openwrt_path}/${openwrt_file_name}" "./${source_release_file}" 2>/dev/null)
+    # Find custom DISTRIB_SOURCECODE, such as [ official/lede ]
     [[ -f "${temp_dir}/${source_release_file}" ]] && {
-        # Load the OpenWrt release information
-        source "${temp_dir}/${source_release_file}"
-        # For example, DISTRIB_SOURCEREPO='github.com/openwrt/openwrt'
-        source_repo="${DISTRIB_SOURCEREPO:-""}"
-        # For example, DISTRIB_SOURCECODE='openwrt'
-        source_codename="${DISTRIB_SOURCECODE:-""}"
-        # For example, DISTRIB_SOURCEBRANCH='openwrt-24.10'
-        source_branch="${DISTRIB_SOURCEBRANCH:-""}"
-
-        # Print the source information
-        echo -e "${INFO} The source codename: [ ${source_codename} ], source branch: [ ${source_branch} ], source repository: [ ${source_repo} ]."
+        source_codename="$(cat ${temp_dir}/${source_release_file} 2>/dev/null | grep -oE "^DISTRIB_SOURCECODE=.*" | head -n 1 | cut -d"'" -f2)"
+        [[ -n "${source_codename}" && "${source_codename:0:1}" != "_" ]] && source_codename="_${source_codename}"
+        echo -e "${INFO} The source_codename: [ ${source_codename} ]"
     }
     # Remove temporary directory
     rm -rf ${temp_dir}
-}
-
-git_pull_dir() {
-    cd ${current_path}
-
-    # Check git_pull_dir parameters
-    git_repo="${1}"
-    git_branch="${2}"
-    git_path="${3}"
-    [[ -n "${git_repo}" && -n "${git_branch}" && -n "${git_path}" ]] || {
-        error_msg "git_pull_dir parameter is missing: [ ${git_repo}, ${git_branch}, ${git_path} ]"
-    }
-
-    # Clone the repository to the temporary directory. If it fails, wait 1 minute and try again, try 10 times.
-    for i in {1..10}; do
-        git clone --quiet --single-branch --depth=1 --branch=${git_branch} ${git_repo} ${git_path}
-        [[ "${?}" -eq 0 ]] && break || sleep 60
-    done
-    [[ "${?}" -eq 0 ]] || error_msg "Failed to clone the [ ${git_repo} ] repository."
 }
 
 download_depends() {
     cd ${current_path}
     echo -e "${STEPS} Start downloading dependency files..."
 
-    # Download u-boot files
-    uboot_num="$(find "${uboot_path}/rockchip" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
-    [[ -n "${uboot_num}" && "${uboot_num}" -le "5" ]] && {
-        git_path="$(mktemp -d)"
-        git_pull_dir ${uboot_repo} main ${git_path}
-        # Move the u-boot files to the storage directory
-        mkdir -p ${uboot_path}
-        cp -af --no-preserve=ownership ${git_path}/u-boot/. ${uboot_path}
-        [[ "${?}" -eq 0 ]] && echo -e "${INFO} OpenWrt: u-boot download completed." || error_msg "OpenWrt: u-boot download failed."
-        # Delete temporary files
-        rm -rf ${git_path}
-    } || echo -e "${INFO} OpenWrt: u-boot files exist, skip downloading."
-
-    # Download firmware files
-    firmware_num="$(find "${firmware_path}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
-    [[ -n "${firmware_num}" && "${firmware_num}" -le "5" ]] && {
-        git_path="$(mktemp -d)"
-        git_pull_dir ${firmware_repo} main ${git_path}
-        # Move the firmware files to the storage directory
-        mkdir -p ${firmware_path}
-        cp -af --no-preserve=ownership ${git_path}/firmware/. ${firmware_path}
-        [[ "${?}" -eq 0 ]] && echo -e "${INFO} OpenWrt: firmware download completed." || error_msg "OpenWrt: firmware download failed."
-        # Delete temporary files
-        rm -rf ${git_path}
-    } || echo -e "${INFO} OpenWrt: firmware files exist, skip downloading."
-
-    # Download Armbian repository files
-    git_path="$(mktemp -d)"
-    git_pull_dir ${depends_repo} main ${git_path}
+    # Download platform files
+    if [[ -d "${platform_files}" ]]; then
+        svn up ${platform_files} --force
+    else
+        svn co ${depends_repo}/armbian-files/platform-files ${platform_files} --force
+    fi
     # Remove the special files in the [ sbin ] directory of the Armbian system
-    find "${git_path}" -type d -path "*/platform-files/*/rootfs/usr/sbin" -prune -exec rm -rf {} +
-    # Move the platform files to the storage directory
-    cp -af --no-preserve=ownership ${git_path}/build-armbian/armbian-files/platform-files/. ${platform_files}
-    [[ "${?}" -eq 0 ]] && echo -e "${INFO} OpenWrt: platform-files download completed." || error_msg "OpenWrt: platform-files download failed."
-    # Move the different files to the storage directory
-    cp -af --no-preserve=ownership ${git_path}/build-armbian/armbian-files/different-files/. ${different_files}
-    [[ "${?}" -eq 0 ]] && echo -e "${INFO} OpenWrt: different-files download completed." || error_msg "OpenWrt: different-files download failed."
-    # Move the balethirq related files to the storage directory
-    cp -f --no-preserve=ownership ${git_path}/build-armbian/armbian-files/common-files/usr/sbin/balethirq.pl ${common_files}/usr/sbin
-    cp -f --no-preserve=ownership ${git_path}/build-armbian/armbian-files/common-files/etc/balance_irq ${common_files}/etc
-    [[ "${?}" -eq 0 ]] && echo -e "${INFO} OpenWrt: balethirq download completed." || error_msg "OpenWrt: balethirq download failed."
-    # Delete temporary files
-    rm -rf ${git_path}
+    rm -rf $(find ${platform_files} -type d -name "sbin")
 
-    # Download luci-app-amlogic install/update and other related files
-    git_path="$(mktemp -d)"
-    git_pull_dir ${script_repo} main ${git_path}
-    # Move the sbin files to the storage directory
-    cp -af --no-preserve=ownership ${git_path}/luci-app-amlogic/root/usr/sbin/. ${common_files}/usr/sbin
-    [[ "${?}" -eq 0 ]] && echo -e "${INFO} luci-app-amlogic: sbin download completed." || error_msg "luci-app-amlogic: sbin download failed."
+    # Download different files
+    if [[ -d "${different_files}" ]]; then
+        svn up ${different_files} --force
+    else
+        svn co ${depends_repo}/armbian-files/different-files ${different_files} --force
+    fi
+    # Remove the special files in the [ sbin ] directory of the Armbian system
+    rm -rf $(find ${different_files} -type d -name "sbin")
+
+    # Download u-boot files
+    if [[ -d "${uboot_path}" ]]; then
+        svn up ${uboot_path} --force
+    else
+        svn co ${depends_repo}/u-boot ${uboot_path} --force
+    fi
+
+    # Download Armbian firmware files
+    svn co ${firmware_repo} ${firmware_path} --force
+
+    # Download balethirq related files
+    svn export ${depends_repo}/armbian-files/common-files/usr/sbin/balethirq.pl ${common_files}/usr/sbin --force
+    svn export ${depends_repo}/armbian-files/common-files/etc/balance_irq ${common_files}/etc --force
+
+    # Download install/update and other related files
+    svn export ${script_repo} ${common_files}/usr/sbin --force
     chmod +x ${common_files}/usr/sbin/*
-    # Move the share files to the storage directory
-    mkdir -p ${common_files}/usr/share/amlogic
-    cp -af --no-preserve=ownership ${git_path}/luci-app-amlogic/root/usr/share/amlogic/. ${common_files}/usr/share/amlogic
-    [[ "${?}" -eq 0 ]] && echo -e "${INFO} luci-app-amlogic: share download completed." || error_msg "luci-app-amlogic: share download failed."
-    chmod +x ${common_files}/usr/share/amlogic/*
-    # Delete temporary files
-    rm -rf ${git_path}
+    # Convert text format profiles for install script(openwrt-install-amlogic)
+    cat ${model_conf} | sed -e 's/NA//g' -e 's/NULL//g' -e 's/[ ][ ]*//g' | grep -E "^[^#].*" >${model_txt}
 }
 
-query_kernel() {
-    echo -e "${STEPS} Start querying the latest kernel version..."
+query_version() {
+    echo -e "${STEPS} Start querying the latest kernel version for [ $(echo ${tags_list[*]} | xargs) ]..."
 
     # Check the version on the kernel repository
     x="1"
-    for key in "${!tags_list[@]}"; do
+    for k in ${tags_list[*]}; do
         {
+            # Select the corresponding kernel directory and list
+            kd="${k}"
+            if [[ "${k}" == "rk3588" ]]; then
+                down_kernel_list=(${rk3588_kernel[*]})
+            elif [[ "${k}" == "h6" ]]; then
+                down_kernel_list=(${h6_kernel[*]})
+            elif [[ "${k}" == "specify" ]]; then
+                kd="stable"
+                down_kernel_list=(${specify_kernel[*]})
+            else
+                down_kernel_list=(${stable_kernel[*]})
+            fi
+
             # Query the name of the latest kernel version
             tmp_arr_kernels=()
-            down_kernel_list=(${tags_list[${key}]})
             i=1
-            for kernel_var in "${down_kernel_list[@]}"; do
-                echo -e "${INFO} (${x}.${i}) Auto query the latest kernel version for [ ${key} - ${kernel_var} ]"
+            for kernel_var in ${down_kernel_list[*]}; do
+                echo -e "${INFO} (${x}.${i}) Auto query the latest kernel version of the same series for [ ${k} - ${kernel_var} ]"
 
                 # Identify the kernel <VERSION> and <PATCHLEVEL>, such as [ 6.1 ]
                 kernel_verpatch="$(echo ${kernel_var} | awk -F '.' '{print $1"."$2}')"
 
-                # Query the latest kernel version
-                latest_version="$(
-                    curl -fsSL \
-                        ${kernel_api}/releases/expanded_assets/kernel_${key} |
-                        grep -oE "${kernel_verpatch}\.[0-9]+\.tar\.gz" | sed 's/.tar.gz//' |
-                        sort -urV | head -n 1
-                )"
+                if [[ -n "${gh_token}" ]]; then
+                    latest_version="$(
+                        curl -s \
+                            -H "Accept: application/vnd.github+json" \
+                            -H "Authorization: Bearer ${gh_token}" \
+                            ${kernel_api}/releases/tags/kernel_${kd} |
+                            jq -r '.assets[].name' |
+                            grep -oE "${kernel_verpatch}\.[0-9]+" |
+                            sort -rV | head -n 1
+                    )"
+                    query_api="Authenticated user request"
+                else
+                    latest_version="$(
+                        curl -s \
+                            -H "Accept: application/vnd.github+json" \
+                            ${kernel_api}/releases/tags/kernel_${kd} |
+                            jq -r '.assets[].name' |
+                            grep -oE "${kernel_verpatch}\.[0-9]+" |
+                            sort -rV | head -n 1
+                    )"
+                    query_api="Unauthenticated user request"
+                fi
 
-                if [[ "${?}" -eq 0 && -n "${latest_version}" ]]; then
+                if [[ "${?}" -eq "0" && -n "${latest_version}" ]]; then
                     tmp_arr_kernels[${i}]="${latest_version}"
                 else
                     tmp_arr_kernels[${i}]="${kernel_var}"
                 fi
 
-                echo -e "${INFO} (${x}.${i}) [ ${key} - ${tmp_arr_kernels[$i]} ] is latest kernel. \n"
+                echo -e "${INFO} (${x}.${i}) [ ${k} - ${tmp_arr_kernels[$i]} ] is latest kernel (${query_api}). \n"
 
-                ((i++))
+                let i++
             done
 
-            # Assign the latest kernel version to the array
-            tags_list[${key}]="${tmp_arr_kernels[@]}"
+            # Reset the kernel array to the latest kernel version
+            if [[ "${k}" == "rk3588" ]]; then
+                unset rk3588_kernel
+                rk3588_kernel=(${tmp_arr_kernels[*]})
+            elif [[ "${k}" == "h6" ]]; then
+                unset h6_kernel
+                h6_kernel=(${tmp_arr_kernels[*]})
+            elif [[ "${k}" == "specify" ]]; then
+                unset specify_kernel
+                specify_kernel=(${tmp_arr_kernels[*]})
+            else
+                unset stable_kernel
+                stable_kernel=(${tmp_arr_kernels[*]})
+            fi
 
-            ((x++))
+            let x++
         }
     done
 }
@@ -573,7 +394,7 @@ query_kernel() {
 check_kernel() {
     [[ -n "${1}" ]] && check_path="${1}" || error_msg "Invalid kernel path to check."
     check_files=($(cat "${check_path}/sha256sums" | awk '{print $2}'))
-    for cf in "${check_files[@]}"; do
+    for cf in ${check_files[*]}; do
         {
             # Check if file exists
             [[ -s "${check_path}/${cf}" ]] || error_msg "The [ ${cf} ] file is missing."
@@ -583,50 +404,57 @@ check_kernel() {
             [[ "${tmp_sha256sum}" == "${tmp_checkcode}" ]] || error_msg "[ ${cf} ]: sha256sum verification failed."
         }
     done
-    echo -e "${INFO} All [ ${#check_files[@]} ] kernel files are sha256sum checked to be complete.\n"
+    echo -e "${INFO} All [ ${#check_files[*]} ] kernel files are sha256sum checked to be complete.\n"
 }
 
 download_kernel() {
     cd ${current_path}
-    echo -e "${STEPS} Start downloading the kernel files..."
+    echo -e "${STEPS} Start downloading the kernel files for [ $(echo ${tags_list[*]} | xargs) ]..."
 
     x="1"
-    for key in "${!tags_list[@]}"; do
+    for k in ${tags_list[*]}; do
         {
-            down_kernel_list=(${tags_list[${key}]})
+            # Set the kernel download list
+            kd="${k}"
+            if [[ "${k}" == "rk3588" ]]; then
+                down_kernel_list=(${rk3588_kernel[*]})
+            elif [[ "${k}" == "h6" ]]; then
+                down_kernel_list=(${h6_kernel[*]})
+            elif [[ "${k}" == "specify" ]]; then
+                down_kernel_list=(${specify_kernel[*]})
+                kd="stable"
+            else
+                down_kernel_list=(${stable_kernel[*]})
+            fi
+
             # Download the kernel to the storage directory
             i="1"
-            for kernel_var in "${down_kernel_list[@]}"; do
-                if [[ ! -d "${kernel_path}/${key}/${kernel_var}" ]]; then
-                    kernel_down_from="https://github.com/${kernel_repo}/releases/download/kernel_${key}/${kernel_var}.tar.gz"
-                    echo -e "${INFO} (${x}.${i}) [ ${key} - ${kernel_var} ] Kernel download from [ ${kernel_down_from} ]"
+            for kernel_var in ${down_kernel_list[*]}; do
+                if [[ ! -d "${kernel_path}/${kd}/${kernel_var}" ]]; then
+                    kernel_down_from="https://github.com/${kernel_repo}/releases/download/kernel_${kd}/${kernel_var}.tar.gz"
+                    echo -e "${INFO} (${x}.${i}) [ ${k} - ${kernel_var} ] Kernel download from [ ${kernel_down_from} ]"
 
-                    # Download the kernel files. If the download fails, try again 10 times.
-                    [[ -d "${kernel_path}/${key}" ]] || mkdir -p ${kernel_path}/${key}
-                    for t in {1..10}; do
-                        curl -fsSL "${kernel_down_from}" -o "${kernel_path}/${key}/${kernel_var}.tar.gz"
-                        [[ "${?}" -eq 0 ]] && break || sleep 60
-                    done
-                    [[ "${?}" -eq 0 ]] || error_msg "Failed to download the kernel files from the server."
+                    mkdir -p ${kernel_path}/${kd}
+                    wget "${kernel_down_from}" -q -P "${kernel_path}/${kd}"
+                    [[ "${?}" -ne "0" ]] && error_msg "Failed to download the kernel files from the server."
 
-                    # Decompress the kernel files
-                    tar -mxzf "${kernel_path}/${key}/${kernel_var}.tar.gz" -C "${kernel_path}/${key}"
-                    [[ "${?}" -eq 0 ]] || error_msg "[ ${kernel_var} ] kernel decompression failed."
+                    tar -xf "${kernel_path}/${kd}/${kernel_var}.tar.gz" -C "${kernel_path}/${kd}"
+                    [[ "${?}" -ne "0" ]] && error_msg "[ ${kernel_var} ] kernel decompression failed."
                 else
-                    echo -e "${INFO} (${x}.${i}) [ ${key} - ${kernel_var} ] Kernel is in the local directory."
+                    echo -e "${INFO} (${x}.${i}) [ ${k} - ${kernel_var} ] Kernel is in the local directory."
                 fi
 
                 # If the kernel contains the sha256sums file, check the files integrity
-                [[ -f "${kernel_path}/${key}/${kernel_var}/sha256sums" ]] && check_kernel "${kernel_path}/${key}/${kernel_var}"
+                [[ -f "${kernel_path}/${kd}/${kernel_var}/sha256sums" ]] && check_kernel "${kernel_path}/${kd}/${kernel_var}"
 
-                ((i++))
+                let i++
             done
 
             # Delete downloaded kernel temporary files
-            rm -f ${kernel_path}/${key}/*.tar.gz
+            rm -f ${kernel_path}/${kd}/*.tar.gz
             sync
 
-            ((x++))
+            let x++
         }
     done
 }
@@ -636,83 +464,40 @@ confirm_version() {
 
     # Columns of ${model_conf}:
     # 1.ID  2.MODEL  3.SOC  4.FDTFILE  5.UBOOT_OVERLOAD  6.MAINLINE_UBOOT  7.BOOTLOADER_IMG  8.DESCRIPTION
-    # 9.KERNEL_TAGS  10.PLATFORM  11.FAMILY  12.BOOT_CONF  13.CONTRIBUTORS  14.BOARD  15.BUILD
+    # 9.KERNEL_TAGS  10.PLATFORM  11.FAMILY  12.BOOT_CONF  13.BOARD  14.BUILD
     # Column 5, called <UBOOT_OVERLOAD> in Amlogic, <TRUST_IMG> in Rockchip, Not used in Allwinner.
 
     # Find [ the first ] configuration information with [ the same BOARD name ] and [ BUILD as yes ] in the ${model_conf} file.
+    [[ -f "${model_conf}" ]] || error_msg "[ ${model_conf} ] file is missing!"
     board_conf="$(
         cat ${model_conf} |
             sed -e 's/NA//g' -e 's/NULL//g' -e 's/[ ][ ]*//g' |
-            grep -E "^[^#].*:${board}:(yes|no)$" |
+            grep -E "^[^#].*:${board}:yes$" |
             head -n 1
     )"
     [[ -n "${board_conf}" ]] || error_msg "[ ${board} ] config is missing!"
 
     # Get device settings options
-    MODEL_ID="$(echo ${board_conf} | awk -F':' '{print $1}')"
-    MODEL_NAME="$(echo ${board_conf} | awk -F':' '{print $2}')"
     SOC="$(echo ${board_conf} | awk -F':' '{print $3}')"
     FDTFILE="$(echo ${board_conf} | awk -F':' '{print $4}')"
     UBOOT_OVERLOAD="$(echo ${board_conf} | awk -F':' '{print $5}')"
     TRUST_IMG="${UBOOT_OVERLOAD}"
-    MAINLINE_UBOOT="$(echo ${board_conf} | awk -F':' '{print $6}')"
-    BOOTLOADER_IMG="$(echo ${board_conf} | awk -F':' '{print $7}')"
+    MAINLINE_UBOOT="$(echo ${board_conf} | awk -F':' '{print $6}')" && MAINLINE_UBOOT="${MAINLINE_UBOOT##*/}"
+    BOOTLOADER_IMG="$(echo ${board_conf} | awk -F':' '{print $7}')" && BOOTLOADER_IMG="${BOOTLOADER_IMG##*/}"
     KERNEL_TAGS="$(echo ${board_conf} | awk -F':' '{print $9}')"
     PLATFORM="$(echo ${board_conf} | awk -F':' '{print $10}')"
     FAMILY="$(echo ${board_conf} | awk -F':' '{print $11}')"
     BOOT_CONF="$(echo ${board_conf} | awk -F':' '{print $12}')"
-    CONTRIBUTORS="$(echo ${board_conf} | awk -F':' '{print $13}')"
 
     # Check whether the key parameters are correct
     [[ -n "${PLATFORM}" ]] || error_msg "Invalid PLATFORM parameter: [ ${PLATFORM} ]"
     # Set supported platform name
     support_platform=("amlogic" "rockchip" "allwinner")
-    [[ -n "$(echo "${support_platform[@]}" | grep -w "${PLATFORM}")" ]] || error_msg "[ ${PLATFORM} ] not supported."
-
-    # Add u-boot files record information
-    [[ -n "${MAINLINE_UBOOT}" ]] && RECORD_MAINLINE_UBOOT="/lib/u-boot/${MAINLINE_UBOOT}" || RECORD_MAINLINE_UBOOT=""
-    [[ -n "${BOOTLOADER_IMG}" ]] && RECORD_BOOTLOADER_IMG="/lib/u-boot/${BOOTLOADER_IMG}" || RECORD_BOOTLOADER_IMG=""
-    [[ -n "${TRUST_IMG}" ]] && RECORD_TRUST_IMG="/lib/u-boot/${TRUST_IMG}" || RECORD_TRUST_IMG=""
-    # Set the Amlogic u-boot series
-    family_rename="${FAMILY//-/_}"
-    eval "amlogic_uboot=(\${uboot_${family_rename}[@]})"
-
-    # Get the kernel tags and version
-    conf_kernel_tags="${KERNEL_TAGS%%/*}"
-    conf_kernel_list="${KERNEL_TAGS##*/}"
-    # Replace the default kernel tags with the custom kernel tags
-    [[ -n "${kernel_usage}" && "${conf_kernel_tags}" == "${default_tags}" ]] && conf_kernel_tags="${kernel_usage}"
-    # Check the kernel tags and version
-    [[ -z "${conf_kernel_tags}" ]] && error_msg "The [ ${KERNEL_TAGS} ] is missing tags part."
-    [[ -z "${conf_kernel_list}" ]] && error_msg "The [ ${KERNEL_TAGS} ] is missing list part."
-
-    # Find the kernel list defined in the model database
-    model_kernel=()
-    if [[ "${conf_kernel_list}" == "all" ]]; then
-        eval "model_kernel=(\"\${${conf_kernel_tags}_kernel[@]}\")"
-        model_kernel=($(echo "${model_kernel[@]}" | xargs -n1 | sed -E 's/^([0-9]+\.[0-9]+)(\.[a-z0-9]+)?$/\1.[0-9]+/'))
-    else
-        # Convert the string into an array, using "_" as the delimiter
-        IFS='_' read -ra conf_kernel_list <<<"${conf_kernel_list}"
-        model_kernel=($(echo "${conf_kernel_list[@]}" | xargs -n1 | sed -E 's/^([0-9]+\.[0-9]+)(\.[a-z0-9]+)?$/\1.[0-9]+/'))
-    fi
-    # Check the kernel list
-    [[ "${#model_kernel[@]}" -eq 0 ]] && error_msg "The kernel list is empty for [ ${board} ]"
-
-    # Find the kernel version that matches the custom version
-    build_kernel=()
-    latest_kernel=(${tags_list[${conf_kernel_tags}]})
-    for ck in "${model_kernel[@]}"; do
-        for lk in "${latest_kernel[@]}"; do
-            [[ "${lk}" =~ ^${ck}$ ]] && build_kernel+=("${lk}")
-        done
-    done
-    # Check the kernel version
-    [[ "${#build_kernel[@]}" -eq 0 ]] && error_msg "The kernel list is invalid for [ ${board} ]"
+    [[ -n "$(echo "${support_platform[*]}" | grep -w "${PLATFORM}")" ]] || error_msg "[ ${PLATFORM} ] not supported."
 }
 
 make_image() {
-    process_msg "(1/6) Make OpenWrt image."
+    process_msg " (1/6) Make OpenWrt image."
     cd ${current_path}
 
     # Set Armbian image file parameters
@@ -732,24 +517,9 @@ make_image() {
         bootfs_type="fat32"
     }
 
-    # Special procedures for flashing specific boards
-    # Reset default parameters
-    write_board_file="no"
-    adjust_kernel_files="no"
-    # Check the personalization settings of this board
-    board_release="${different_files}/${board}/rootfs/${board_release_file}"
-    [[ -f "${board_release}" ]] && source ${board_release}
-
-    # echo -e "${INFO} The [ ${board} ] OpenWrt image partition status: [ skip:${skip_mb} / boot:${boot_mb} / rootfs:${root_mb} ] MiB."
-
-    # Check output directory
+    # Set OpenWrt filename
     [[ -d "${out_path}" ]] || mkdir -p ${out_path}
-    # Add the source codename to the OpenWrt filename
-    [[ "${source_codename}" == "openwrt" ]] && openwrt_alias="official" || openwrt_alias="${source_codename}"
-    [[ -n "${openwrt_alias}" ]] && openwrt_alias+="_" || openwrt_alias=""
-    # Set OpenWrt image filename
-    openwrt_filename="openwrt_${openwrt_alias}${PLATFORM}_${board}_k${kernel}_$(date +"%Y.%m.%d").img"
-    build_image_file="${out_path}/${openwrt_filename}"
+    build_image_file="${out_path}/openwrt${source_codename}_${PLATFORM}_${board}_k${kernel}_$(date +"%Y.%m.%d").img"
     rm -f ${build_image_file}
 
     IMG_SIZE="$((skip_mb + boot_mb + root_mb))"
@@ -782,7 +552,7 @@ make_image() {
     # Format rootfs partition
     mkfs.btrfs -f -U ${ROOTFS_UUID} -L "ROOTFS" -m single ${loop_new}p2 >/dev/null 2>&1
 
-    # Write the specific bootloader for [ Amlogic ] boxes
+    # Write the specified bootloader for [ Amlogic ] boxes
     [[ "${PLATFORM}" == "amlogic" ]] && {
         bootloader_path="${uboot_path}/${PLATFORM}/bootloader"
         if [[ -n "${MAINLINE_UBOOT}" && -f "${bootloader_path}/${MAINLINE_UBOOT}" ]]; then
@@ -796,7 +566,7 @@ make_image() {
         fi
     }
 
-    # Write the specific bootloader for [ Rockchip ] boxes
+    # Write the specified bootloader for [ Rockchip ] boxes
     [[ "${PLATFORM}" == "rockchip" ]] && {
         bootloader_path="${uboot_path}/${PLATFORM}/${board}"
         if [[ -n "${BOOTLOADER_IMG}" && -f "${bootloader_path}/${BOOTLOADER_IMG}" ]] &&
@@ -811,16 +581,13 @@ make_image() {
             dd if="${bootloader_path}/${BOOTLOADER_IMG}" of="${loop_new}" conv=fsync,notrunc bs=512 seek=64 2>/dev/null
             dd if="${bootloader_path}/${MAINLINE_UBOOT}" of="${loop_new}" conv=fsync,notrunc bs=512 seek=16384 2>/dev/null
             #echo -e "${INFO} 02. For [ ${board} ] write bootloader: ${MAINLINE_UBOOT}"
-        elif [[ "${BOOTLOADER_IMG}" == "u-boot-rockchip.bin" && -f "${bootloader_path}/${BOOTLOADER_IMG}" ]]; then
-            dd if="${bootloader_path}/${BOOTLOADER_IMG}" of="${loop_new}" conv=fsync,notrunc bs=512 seek=64 2>/dev/null
-            #echo -e "${INFO} 03. For [ ${board} ] write bootloader: ${BOOTLOADER_IMG}"
         elif [[ -n "${BOOTLOADER_IMG}" && -f "${bootloader_path}/${BOOTLOADER_IMG}" ]]; then
             dd if="${bootloader_path}/${BOOTLOADER_IMG}" of="${loop_new}" conv=fsync,notrunc bs=512 skip=64 seek=64 2>/dev/null
-            #echo -e "${INFO} 04. For [ ${board} ] write bootloader: ${BOOTLOADER_IMG}"
+            #echo -e "${INFO} 03. For [ ${board} ] write bootloader: ${BOOTLOADER_IMG}"
         fi
     }
 
-    # Write the specific bootloader for [ Allwinner ] boxes
+    # Write the specified bootloader for [ Allwinner ] boxes
     [[ "${PLATFORM}" == "allwinner" ]] && {
         bootloader_path="${uboot_path}/${PLATFORM}/${board}"
         if [[ -n "${BOOTLOADER_IMG}" && -f "${bootloader_path}/${BOOTLOADER_IMG}" ]] &&
@@ -833,111 +600,95 @@ make_image() {
             #echo -e "${INFO} 02. For [ ${board} ] write bootloader: ${BOOTLOADER_IMG}"
         fi
     }
-
-    # Special procedures for flashing specific boards
-    [[ "${write_board_file}" == "yes" ]] && write_board_bootloader
 }
 
 extract_openwrt() {
-    process_msg "(2/6) Extract OpenWrt files."
+    process_msg " (2/6) Extract OpenWrt files."
     cd ${current_path}
 
-    # Create a dual-partition general directory
+    # Create OpenWrt mirror partition
     tag_bootfs="${tmp_path}/${kernel}/${board}/bootfs"
     tag_rootfs="${tmp_path}/${kernel}/${board}/rootfs"
     mkdir -p ${tag_bootfs} ${tag_rootfs}
-    chown root:root ${tag_bootfs} ${tag_rootfs}
 
     # Mount bootfs
     if [[ "${bootfs_type}" == "fat32" ]]; then
-        mount_try vfat ${loop_new}p1 ${tag_bootfs}
+        mount -t vfat -o discard ${loop_new}p1 ${tag_bootfs}
     else
-        mount_try ext4 ${loop_new}p1 ${tag_bootfs}
+        mount -t ext4 -o discard ${loop_new}p1 ${tag_bootfs}
     fi
+    [[ "${?}" -eq "0" ]] || error_msg "mount ${loop_new}p1 failed!"
 
     # Mount rootfs
-    mount_try btrfs ${loop_new}p2 ${tag_rootfs}
+    mount -t btrfs -o discard,compress=zstd:6 ${loop_new}p2 ${tag_rootfs}
+    [[ "${?}" -eq "0" ]] || error_msg "mount ${loop_new}p2 failed!"
 
     # Create snapshot directory
     btrfs subvolume create ${tag_rootfs}/etc >/dev/null 2>&1
 
-    # Unzip the OpenWrt rootfs file
-    tar -mxzf ${openwrt_path}/${openwrt_default_file} -C ${tag_rootfs}
+    # Unzip the OpenWrt package
+    tar -xzf ${openwrt_path}/${openwrt_file_name} -C ${tag_rootfs}
     rm -rf ${tag_rootfs}/lib/modules/*
     rm -f ${tag_rootfs}/rom/sbin/firstboot
 
     # Copy the common files
-    [[ -d "${common_files}" ]] && cp -af --no-preserve=ownership ${common_files}/. ${tag_rootfs}
+    [[ -d "${common_files}" ]] && cp -rf ${common_files}/* ${tag_rootfs}
 
     # Copy the platform files
     platform_bootfs="${platform_files}/${PLATFORM}/bootfs"
     platform_rootfs="${platform_files}/${PLATFORM}/rootfs"
-    [[ -d "${platform_bootfs}" ]] && cp -rf ${platform_bootfs}/. ${tag_bootfs}
-    [[ -d "${platform_rootfs}" ]] && cp -af --no-preserve=ownership ${platform_rootfs}/. ${tag_rootfs}
+    [[ -d "${platform_bootfs}" ]] && cp -rf ${platform_bootfs}/* ${tag_bootfs}
+    [[ -d "${platform_rootfs}" ]] && cp -rf ${platform_rootfs}/* ${tag_rootfs}
 
     # Copy the different files
     different_bootfs="${different_files}/${board}/bootfs"
     different_rootfs="${different_files}/${board}/rootfs"
-    [[ -d "${different_bootfs}" ]] && cp -rf ${different_bootfs}/. ${tag_bootfs}
-    [[ -d "${different_rootfs}" ]] && cp -af --no-preserve=ownership ${different_rootfs}/. ${tag_rootfs}
+    [[ -d "${different_bootfs}" ]] && cp -rf ${different_bootfs}/* ${tag_bootfs}
+    [[ -d "${different_rootfs}" ]] && cp -rf ${different_rootfs}/* ${tag_rootfs}
 
     # Copy the bootloader files
     [[ -d "${tag_rootfs}/lib/u-boot" ]] || mkdir -p "${tag_rootfs}/lib/u-boot"
     rm -rf ${tag_rootfs}/lib/u-boot/*
-    [[ -d "${bootloader_path}" ]] && cp -af --no-preserve=ownership ${bootloader_path}/. ${tag_rootfs}/lib/u-boot
+    [[ -d "${bootloader_path}" ]] && cp -rf ${bootloader_path}/* ${tag_rootfs}/lib/u-boot
 
-    # Copy the Amlogic overload files
-    [[ "${PLATFORM}" == "amlogic" ]] && {
-        for au in "${amlogic_uboot[@]}"; do
-            if [[ -f "${uboot_path}/${PLATFORM}/overload/u-boot-${au}" ]]; then
-                cp -f ${uboot_path}/${PLATFORM}/overload/u-boot-${au} ${tag_bootfs}
-            else
-                error_msg "The [ u-boot-${au} ] file is missing in the [ ${uboot_path}/${PLATFORM}/overload ] directory."
-            fi
-        done
-    }
-
-    # Remove the .git directories
-    rm -rf $(find ${tmp_path} -type d -name '.git')
+    # Copy the overload files
+    [[ "${PLATFORM}" == "amlogic" ]] && cp -f ${uboot_path}/${PLATFORM}/overload/* ${tag_bootfs}
 }
 
 replace_kernel() {
-    process_msg "(3/6) Replace the kernel."
+    process_msg " (3/6) Replace the kernel."
     cd ${current_path}
 
     # Determine custom kernel filename
-    kernel_boot="$(ls ${kernel_path}/${conf_kernel_tags}/${kernel}/boot-${kernel}*.tar.gz 2>/dev/null | head -n 1)"
+    kernel_boot="$(ls ${kernel_path}/${kd}/${kernel}/boot-${kernel}*.tar.gz 2>/dev/null | head -n 1)"
     kernel_name="${kernel_boot##*/}" && kernel_name="${kernel_name:5:-7}"
     [[ -n "${kernel_name}" ]] || error_msg "Missing kernel files for [ ${kernel} ]"
-    kernel_dtb="${kernel_path}/${conf_kernel_tags}/${kernel}/dtb-${PLATFORM}-${kernel_name}.tar.gz"
-    kernel_modules="${kernel_path}/${conf_kernel_tags}/${kernel}/modules-${kernel_name}.tar.gz"
+    kernel_dtb="${kernel_path}/${kd}/${kernel}/dtb-${PLATFORM}-${kernel_name}.tar.gz"
+    kernel_modules="${kernel_path}/${kd}/${kernel}/modules-${kernel_name}.tar.gz"
     [[ -s "${kernel_boot}" && -s "${kernel_dtb}" && -s "${kernel_modules}" ]] || error_msg "The 3 kernel missing."
 
     # 01. For /boot five files
-    tar -mxzf ${kernel_boot} -C ${tag_bootfs}
-    [[ "${PLATFORM}" == "allwinner" ]] && (cd ${tag_bootfs} && cp -f uInitrd-${kernel_name} uInitrd && cp -f vmlinuz-${kernel_name} Image)
+    tar -xzf ${kernel_boot} -C ${tag_bootfs}
     [[ "${PLATFORM}" == "amlogic" ]] && (cd ${tag_bootfs} && cp -f uInitrd-${kernel_name} uInitrd && cp -f vmlinuz-${kernel_name} zImage)
     [[ "${PLATFORM}" == "rockchip" ]] && (cd ${tag_bootfs} && ln -sf uInitrd-${kernel_name} uInitrd && ln -sf vmlinuz-${kernel_name} Image)
+    [[ "${PLATFORM}" == "allwinner" ]] && (cd ${tag_bootfs} && cp -f uInitrd-${kernel_name} uInitrd && cp -f vmlinuz-${kernel_name} Image)
     [[ "$(ls ${tag_bootfs}/*${kernel_name} -l 2>/dev/null | grep "^-" | wc -l)" -ge "2" ]] || error_msg "The /boot files is missing."
     [[ "${PLATFORM}" == "amlogic" ]] && get_textoffset "${tag_bootfs}/zImage"
 
     # 02. For /boot/dtb/${PLATFORM}/*
     [[ -d "${tag_bootfs}/dtb/${PLATFORM}" ]] || mkdir -p ${tag_bootfs}/dtb/${PLATFORM}
-    tar -mxzf ${kernel_dtb} -C ${tag_bootfs}/dtb/${PLATFORM}
+    tar -xzf ${kernel_dtb} -C ${tag_bootfs}/dtb/${PLATFORM}
     [[ "${PLATFORM}" == "rockchip" ]] && ln -sf dtb ${tag_bootfs}/dtb-${kernel_name}
     [[ "$(ls ${tag_bootfs}/dtb/${PLATFORM} -l 2>/dev/null | grep "^-" | wc -l)" -ge "2" ]] || error_msg "/boot/dtb/${PLATFORM} files is missing."
 
     # 03. For /lib/modules/${kernel_name}
-    tar -mxzf ${kernel_modules} -C ${tag_rootfs}/lib/modules
+    tar -xzf ${kernel_modules} -C ${tag_rootfs}/lib/modules
     (cd ${tag_rootfs}/lib/modules/${kernel_name}/ && rm -f build source *.ko 2>/dev/null && find ./ -type f -name '*.ko' -exec ln -s {} ./ \;)
     [[ "$(ls ${tag_rootfs}/lib/modules/${kernel_name} -l 2>/dev/null | grep "^d" | wc -l)" -eq "1" ]] || error_msg "/usr/lib/modules kernel folder is missing."
-
-    # Special procedures for flashing specific boards
-    [[ "${adjust_kernel_files}" == "yes" ]] && adjust_kernel_files_cmd
 }
 
 refactor_bootfs() {
-    process_msg "(4/6) Refactor bootfs files."
+    process_msg " (4/6) Refactor bootfs files."
     cd ${tag_bootfs}
 
     # Process Amlogic series boot partition files
@@ -952,7 +703,7 @@ refactor_bootfs() {
     }
 
     # Set uEnv.txt & extlinux.conf mount parameters
-    uenv_rootdev="UUID=${ROOTFS_UUID} rootflags=compress=zstd:6 rw rootwait rootfstype=btrfs"
+    uenv_rootdev="UUID=${ROOTFS_UUID} rootflags=compress=zstd:6 rootfstype=btrfs"
     # Set armbianEnv.txt mount parameters
     armbianenv_rootdev="UUID=${ROOTFS_UUID}"
     armbianenv_rootflags="compress=zstd:6"
@@ -962,8 +713,7 @@ refactor_bootfs() {
     [[ -f "${uenv_conf_file}" ]] && {
         sed -i "s|LABEL=ROOTFS|${uenv_rootdev}|g" ${uenv_conf_file}
         sed -i "s|meson.*.dtb|${FDTFILE}|g" ${uenv_conf_file}
-        sed -i "s|sun.*.dtb|${FDTFILE}|g" ${uenv_conf_file}
-        sed -i "s|rk.*.dtb|${FDTFILE}|g" ${uenv_conf_file}
+        sed -i "s|sun50i.*.dtb|${FDTFILE}|g" ${uenv_conf_file}
     }
 
     # Add an alternate file (/boot/extlinux/extlinux.conf)
@@ -972,8 +722,7 @@ refactor_bootfs() {
     [[ -f "${boot_extlinux_file}" ]] && {
         sed -i "s|LABEL=ROOTFS|${uenv_rootdev}|g" ${boot_extlinux_file}
         sed -i "s|meson.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
-        sed -i "s|sun.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
-        sed -i "s|rk.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
+        sed -i "s|sun50i.*.dtb|${FDTFILE}|g" ${boot_extlinux_file}
         # If needed, such as t95z(s905x), rename delete .bak
         [[ "${BOOT_CONF}" == "extlinux.conf" ]] && mv -f ${boot_extlinux_file} ${rename_extlinux_file}
     }
@@ -981,7 +730,7 @@ refactor_bootfs() {
     # Edit the armbianEnv.txt
     armbianenv_conf_file="armbianEnv.txt"
     [[ -f "${armbianenv_conf_file}" ]] && {
-        sed -i "s|\(fdtfile=.*\/\)[^/]*$|\1${FDTFILE}|g" ${armbianenv_conf_file}
+        sed -i "s|^fdtfile=.*|fdtfile=${PLATFORM}/${FDTFILE}|g" ${armbianenv_conf_file}
         sed -i "s|^rootdev=.*|rootdev=${armbianenv_rootdev}|g" ${armbianenv_conf_file}
         sed -i "s|^rootfstype=.*|rootfstype=btrfs|g" ${armbianenv_conf_file}
         sed -i "s|^rootflags=.*|rootflags=${armbianenv_rootflags}|g" ${armbianenv_conf_file}
@@ -993,31 +742,25 @@ refactor_bootfs() {
 }
 
 refactor_rootfs() {
-    process_msg "(5/6) Refactor rootfs files."
+    process_msg " (5/6) Refactor rootfs files."
     cd ${tag_rootfs}
 
     # Add directory
     mkdir -p .reserved boot run
-
-    # Set default IP address
-    [[ "${openwrt_ip}" != "192.168.1.1" && -f "bin/config_generate" ]] && {
-        sed -i "/lan) ipad=\${ipaddr:-/s/\${ipaddr:-\"[^\"]*\"}/\${ipaddr:-\"${openwrt_ip}\"}/" bin/config_generate
-    }
 
     # Edit fstab
     [[ -f "etc/fstab" && -f "etc/config/fstab" ]] || error_msg "The [ fstab ] files does not exist."
     sed -i "s|LABEL=ROOTFS|UUID=${ROOTFS_UUID}|g" etc/fstab
     sed -i "s|option label 'ROOTFS'|option uuid '${ROOTFS_UUID}'|g" etc/config/fstab
 
-    # Set the OpenWrt download tags for luci-app-amlogic
-    [[ -n "${source_codename}" ]] && tags_str="_${source_codename}" || tags_str=""
-    [[ -n "${source_branch}" ]] && tags_str+="_${source_branch}_"
-    [[ -n "${tags_str}" ]] && sed -i "s|option amlogic_firmware_tag.*|option amlogic_firmware_tag '${tags_str}'|g" etc/config/amlogic
-    # Set the kernel download tags for luci-app-amlogic
-    sed -i "s|option amlogic_kernel_tags.*|option amlogic_kernel_tags 'kernel_${conf_kernel_tags}'|g" etc/config/amlogic
-    # Set the OpenWrt and kernel download branches for luci-app-amlogic
-    kernel_patchlevel="$(echo ${kernel} | awk -F '.' '{print $1"."$2}')"
-    sed -i "s|option amlogic_kernel_branch.*|option amlogic_kernel_branch '${kernel_patchlevel}'|g" etc/config/amlogic
+    # Edit Kernel download directory
+    [[ -f "etc/config/amlogic" ]] && {
+        if [[ "${KERNEL_TAGS}" == "rk3588" ]]; then
+            sed -i "s|pub\/stable|pub\/rk3588|g" etc/config/amlogic
+        elif [[ "${KERNEL_TAGS}" == "h6" ]]; then
+            sed -i "s|pub\/stable|pub\/h6|g" etc/config/amlogic
+        fi
+    }
 
     # Modify the default script to [ bash ] for [ cpustat ]
     [[ -x "bin/bash" ]] && {
@@ -1034,17 +777,14 @@ refactor_rootfs() {
     # Add custom startup script
     custom_startup_script="etc/custom_service/start_service.sh"
     [[ -x "${custom_startup_script}" && -f "etc/rc.local" ]] && {
-        sed -i '/^exit 0/i\bash /etc/custom_service/start_service.sh &' etc/rc.local
+        sed -i '/^exit 0/i\bash /etc/custom_service/start_service.sh' etc/rc.local
     }
 
     # Modify the cpu mode to schedutil
-    [[ -f "etc/config/cpufreq" ]] && sed -i "s|ondemand|schedutil|" etc/config/cpufreq
+    [[ -f "etc/config/cpufreq" ]] && sed -i "s/ondemand/schedutil/" etc/config/cpufreq
 
     # Turn off speed limit by default
     [[ -f "etc/config/nft-qos" ]] && sed -i "s|option limit_enable.*|option limit_enable '0'|g" etc/config/nft-qos
-
-    # Disable the OpenSSL acceleration engine
-    [[ -f "etc/ssl/openssl.cnf" ]] && sed -i "s|^engines = engines_sect|#engines = engines_sect|g" etc/ssl/openssl.cnf
 
     # Add USB and wireless network drivers
     [[ -f "etc/modules.d/usb-net-rtl8150" ]] || echo "rtl8150" >etc/modules.d/usb-net-rtl8150
@@ -1055,7 +795,6 @@ refactor_rootfs() {
     # brcmfmac built-in wireless network card Driver
     echo "brcmfmac" >etc/modules.d/brcmfmac
     echo "brcmutil" >etc/modules.d/brcmutil
-    echo "bcmdhd" >etc/modules.d/bcmdhd
     # USB Realtek RTL8188EU Wireless LAN Driver
     echo "r8188eu" >etc/modules.d/rtl8188eu
     # Realtek RTL8189FS Wireless LAN Driver
@@ -1063,7 +802,7 @@ refactor_rootfs() {
     # Realtek RTL8188FU Wireless LAN Driver
     echo "rtl8188fu" >etc/modules.d/rtl8188fu
     # Realtek RTL8822CS Wireless LAN Driver
-    echo "rtw88_8822cs" >etc/modules.d/rtw88_8822cs
+    echo "88x2cs" >etc/modules.d/88x2cs
     # USB Ralink Wireless LAN Driver
     echo "rt2500usb" >etc/modules.d/rt2500-usb
     echo "rt2800usb" >etc/modules.d/rt2800-usb
@@ -1073,10 +812,6 @@ refactor_rootfs() {
     echo "mt7663u" >etc/modules.d/mt7663u
     echo "mt76x0u" >etc/modules.d/mt76x0u
     echo "mt76x2u" >etc/modules.d/mt76x2u
-    echo "mt76x2e" >etc/modules.d/mt76x2e
-    echo "mt7921e" >etc/modules.d/mt7921e
-    echo "mt7915e" >etc/modules.d/mt7915e
-
     # GPU Driver
     echo "panfrost" >etc/modules.d/panfrost
     # PWM Driver
@@ -1085,21 +820,8 @@ refactor_rootfs() {
     echo "ath10k_core" >etc/modules.d/ath10k_core
     echo "ath10k_sdio" >etc/modules.d/ath10k_sdio
     echo "ath10k_usb" >etc/modules.d/ath10k_usb
-    echo "ath10k_pci" >etc/modules.d/ath10k-pci
-    echo "ath10k_core frame_mode=2" >etc/modules.d/ath10k
     # Enable watchdog driver
     echo "meson_gxbb_wdt" >etc/modules.d/watchdog
-    # For rk3588
-    echo "bifrost_kbase" >etc/modules.d/rk_gpu
-    echo "rknpu" >etc/modules.d/rk_npu
-    # For rk3568
-    echo "rockchipdrm" >etc/modules.d/drm-rockchip
-    echo "rk_crypto2" >etc/modules.d/rk_crypto
-    echo -e "snd_soc_simple_card_utils\nsnd_soc_simple_card\nsnd_soc_rockchip_i2s" >etc/modules.d/snd-rk3568
-    echo "pwm_fan" >etc/modules.d/pwm-fan
-    echo "option" >etc/modules.d/usb-serial-option
-    # For rk3328
-    echo -e "snd_soc_simple_card_utils\nsnd_soc_simple_card\nsnd_soc_rockchip_i2s" >etc/modules.d/snd-rk3328
 
     # Add blacklist
     mkdir -p etc/modprobe.d
@@ -1150,97 +872,92 @@ EOF
 
     # Optimize wifi/bluetooth module
     [[ -d "lib/firmware/brcm" ]] && (
-        cd lib/firmware/brcm/ && rm -f ../*.hcd
+        cd lib/firmware/brcm/ && mv -f ../*.hcd . 2>/dev/null
 
         # gtking/gtking pro is bcm4356 wifi/bluetooth, wifi5 module AP6356S
         sed -e "s/macaddr=.*/macaddr=${random_macaddr}:00/" "brcmfmac4356-sdio.txt" >"brcmfmac4356-sdio.azw,gtking.txt"
         # gtking/gtking pro is bcm4356 wifi/bluetooth, wifi6 module AP6275S
         sed -e "s/macaddr=.*/macaddr=${random_macaddr}:01/" "brcmfmac4375-sdio.txt" >"brcmfmac4375-sdio.azw,gtking.txt"
+        # Phicomm N1 is bcm43455 wifi/bluetooth
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:02/" "brcmfmac43455-sdio.txt" >"brcmfmac43455-sdio.phicomm,n1.txt"
         # MXQ Pro+ is AP6330(bcm4330) wifi/bluetooth
-        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:02/" "brcmfmac4330-sdio.txt" >"brcmfmac4330-sdio.crocon,mxq-pro-plus.txt"
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:03/" "brcmfmac4330-sdio.txt" >"brcmfmac4330-sdio.crocon,mxq-pro-plus.txt"
         # HK1 Box & H96 Max X3 is bcm54339 wifi/bluetooth
-        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:03/" "brcmfmac4339-sdio.ZP.txt" >"brcmfmac4339-sdio.amlogic,sm1.txt"
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:04/" "brcmfmac4339-sdio.ZP.txt" >"brcmfmac4339-sdio.amlogic,sm1.txt"
+        # old ugoos x3 is bcm43455 wifi/bluetooth
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:05/" "brcmfmac43455-sdio.txt" >"brcmfmac43455-sdio.amlogic,sm1.txt"
         # new ugoos x3 is brm43456
-        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:04/" "brcmfmac43456-sdio.txt" >"brcmfmac43456-sdio.amlogic,sm1.txt"
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:06/" "brcmfmac43456-sdio.txt" >"brcmfmac43456-sdio.amlogic,sm1.txt"
         # x96max plus v5.1 (ip1001m phy) adopts am7256 (brcm4354)
-        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:05/" "brcmfmac4354-sdio.txt" >"brcmfmac4354-sdio.amlogic,sm1.txt"
-        # panther x2 AP6212A
-        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:06/" "brcmfmac43430-sdio.txt" >"brcmfmac43430-sdio.panther,x2.txt"
-        # ct2000 s922x is brm4359
-        sed -i "s/macaddr=.*/macaddr=${random_macaddr}:07/" "brcmfmac4359-sdio.ali,ct2000.txt"
+        sed -e "s/macaddr=.*/macaddr=${random_macaddr}:07/" "brcmfmac4354-sdio.txt" >"brcmfmac4354-sdio.amlogic,sm1.txt"
     )
 
     # Add firmware version information to the terminal page
-    [[ -n "${builder_name}" ]] && builder_display="Builder Name: ${builder_name} | " || builder_display=""
     [[ -f "etc/banner" ]] && {
         echo " Install OpenWrt: System → Amlogic Service → Install OpenWrt" >>etc/banner
         echo " Update  OpenWrt: System → Amlogic Service → Online  Update" >>etc/banner
         echo " Board: ${board} | OpenWrt Kernel: ${kernel_name}" >>etc/banner
-        echo " ${builder_display}Production Date: $(date +%Y-%m-%d)" >>etc/banner
+        echo " Production Date: $(date +%Y-%m-%d)" >>etc/banner
         echo "───────────────────────────────────────────────────────────────────────" >>etc/banner
     }
 
     # Add firmware information
     echo "PLATFORM='${PLATFORM}'" >>${op_release}
-    echo "MODEL_ID='${MODEL_ID}'" >>${op_release}
-    echo "MODEL_NAME='${MODEL_NAME}'" >>${op_release}
     echo "SOC='${SOC}'" >>${op_release}
     echo "FDTFILE='${FDTFILE}'" >>${op_release}
     echo "FAMILY='${FAMILY}'" >>${op_release}
     echo "BOARD='${board}'" >>${op_release}
-    echo "KERNEL_TAGS='${conf_kernel_tags}'" >>${op_release}
     echo "KERNEL_VERSION='${kernel}'" >>${op_release}
+    echo "KERNEL_TAGS='${KERNEL_TAGS}'" >>${op_release}
     echo "BOOT_CONF='${BOOT_CONF}'" >>${op_release}
-    echo "MAINLINE_UBOOT='${RECORD_MAINLINE_UBOOT}'" >>${op_release}
-    echo "ANDROID_UBOOT='${RECORD_BOOTLOADER_IMG}'" >>${op_release}
-    if [[ "${PLATFORM}" == "rockchip" ]]; then
-        echo "TRUST_IMG='${RECORD_TRUST_IMG}'" >>${op_release}
-    elif [[ "${PLATFORM}" == "amlogic" ]]; then
+    echo "PACKAGED_DATE='$(date +%Y-%m-%d)'" >>${op_release}
+    echo "MAINLINE_UBOOT='/lib/u-boot/${MAINLINE_UBOOT}'" >>${op_release}
+    echo "ANDROID_UBOOT='/lib/u-boot/${BOOTLOADER_IMG}'" >>${op_release}
+    if [[ "${PLATFORM}" == "amlogic" ]]; then
         echo "UBOOT_OVERLOAD='${UBOOT_OVERLOAD}'" >>${op_release}
+    elif [[ "${PLATFORM}" == "rockchip" ]]; then
+        echo "TRUST_IMG='${TRUST_IMG}'" >>${op_release}
     fi
     if [[ "${PLATFORM}" == "rockchip" ]]; then
         echo "SHOW_INSTALL_MENU='no'" >>${op_release}
     else
         echo "SHOW_INSTALL_MENU='yes'" >>${op_release}
     fi
-    echo "OPENWRT_SOURCEREPO='${source_repo}'" >>${op_release}
-    echo "OPENWRT_SOURCECODE='${source_codename}'" >>${op_release}
-    echo "OPENWRT_SOURCEBRANCH='${source_branch}'" >>${op_release}
-    echo "BUILDER_NAME='${builder_name}'" >>${op_release}
-    echo "CONTRIBUTORS='${CONTRIBUTORS}'" >>${op_release}
-    echo "PACKAGED_DATE='$(date +%Y-%m-%d)'" >>${op_release}
-    # Creating an Alias
-    ln -sf ${op_release#*/} ${ophub_release_file}
 
-    # Remove the menus that are not applicable in the model
-    install_menu=$(echo "${model_txt}" | awk -F'/' '{print $(NF-1)"/"$NF}')
-    grep -E ":${FAMILY}:" ${install_menu} | cut -d':' -f1-8 >temp.txt && mv -f temp.txt ${install_menu}
+    cd ${current_path}
 
     # Create snapshot
-    mkdir -p .snapshots
-    btrfs subvolume snapshot -r etc .snapshots/etc-000 >/dev/null 2>&1
+    mkdir -p ${tag_rootfs}/.snapshots
+    btrfs subvolume snapshot -r ${tag_rootfs}/etc ${tag_rootfs}/.snapshots/etc-000 >/dev/null 2>&1
 
     sync && sleep 3
 }
 
 clean_tmp() {
-    process_msg "(6/6) Cleanup tmp files."
+    process_msg " (6/6) Cleanup tmp files."
     cd ${current_path}
 
     # Unmount the OpenWrt image file
-    fstrim ${tag_bootfs} 2>/dev/null
-    fstrim ${tag_rootfs} 2>/dev/null
     umount -f ${tag_bootfs} 2>/dev/null
     umount -f ${tag_rootfs} 2>/dev/null
     losetup -d ${loop_new} 2>/dev/null
 
+    # Loop to cancel other mounts
+    for x in $(lsblk | grep $(pwd) | grep -oE 'loop[0-9]+' | sort | uniq); do
+        umount -f /dev/${x}p* 2>/dev/null
+        losetup -d /dev/${x} 2>/dev/null
+    done
+    losetup -D
+
     cd ${out_path}
+
     # Compress the OpenWrt image file
-    pigz -qf ${openwrt_filename} || gzip -qf ${openwrt_filename}
+    pigz -f *.img && sync
 
     cd ${current_path}
+
     # Clear temporary files directory
-    rm -rf ${tmp_path} && sync
+    rm -rf ${tmp_path}
 }
 
 loop_make() {
@@ -1248,23 +965,45 @@ loop_make() {
     echo -e "${STEPS} Start making OpenWrt firmware..."
 
     j="1"
-    for b in "${make_openwrt[@]}"; do
+    for b in ${make_openwrt[*]}; do
         {
-            # Set specific configuration for making OpenWrt system
+
+            # Set specific configuration for building OpenWrt system
             board="${b}"
             confirm_version
 
+            # Determine kernel branch
+            kd="${KERNEL_TAGS}"
+            if [[ "${KERNEL_TAGS}" == "rk3588" ]]; then
+                kernel_list=(${rk3588_kernel[*]})
+            elif [[ "${KERNEL_TAGS}" == "h6" ]]; then
+                kernel_list=(${h6_kernel[*]})
+            elif [[ "${KERNEL_TAGS}" =~ ^[0-9]{1,2}\.[0-9]+ ]]; then
+                kernel_list=(${specify_kernel[*]})
+                kd="stable"
+            else
+                kernel_list=(${stable_kernel[*]})
+            fi
+
             i="1"
-            for k in "${build_kernel[@]}"; do
+            for k in ${kernel_list[*]}; do
                 {
-                    # Set the kernel version
                     kernel="${k}"
 
+                    # Skip inapplicable kernels
+                    if [[ "${KERNEL_TAGS}" =~ ^[0-9]{1,2}\.[0-9]+ ]]; then
+                        [[ "${kernel}" != "$(echo ${KERNEL_TAGS} | awk -F'.' '{print $1"."$2"."}')"* ]] && {
+                            echo -e "(${j}.${i}) ${TIPS} The [ ${board} ] device cannot use [ ${kd}/${kernel} ] kernel, skip."
+                            let i++
+                            continue
+                        }
+                    fi
+
                     # Check disk space size
-                    echo -ne "(${j}.${i}) Start making OpenWrt [\033[92m ${board} - ${conf_kernel_tags}/${kernel} \033[0m]. "
-                    now_remaining_space="$(df -Tk ${make_path} | tail -n1 | awk '{print $5}' | echo $(($(xargs) / 1024 / 1024)))"
+                    echo -ne "(${j}.${i}) Start making OpenWrt [ ${board} - ${kd}/${kernel} ]. "
+                    now_remaining_space="$(df -Tk ${current_path} | grep '/dev/' | awk '{print $5}' | echo $(($(xargs) / 1024 / 1024)))"
                     if [[ "${now_remaining_space}" -le "3" ]]; then
-                        echo -e "${WARNING} Remaining space is less than 3G, exit this make."
+                        echo -e "${WARNING} Remaining space is less than 3G, exit this build."
                         break
                     else
                         echo "Remaining space is ${now_remaining_space}G."
@@ -1279,42 +1018,50 @@ loop_make() {
                     clean_tmp
 
                     echo -e "(${j}.${i}) OpenWrt made successfully. \n"
-                    ((i++))
+                    let i++
                 }
             done
 
-            ((j++))
+            let j++
         }
     done
+
+    cd ${out_path}
+
+    # Backup the OpenWrt file
+    cp -f ${openwrt_path}/${openwrt_file_name} .
+
+    # Generate sha256sum check file
+    sha256sum * >sha256sums && sync
 }
 
 # Show welcome message
 echo -e "${STEPS} Welcome to make OpenWrt!"
 echo -e "${INFO} Server running on Ubuntu: [ Release: ${host_release} / Host: ${arch_info} ] \n"
 # Check script permission
-[[ "$(id -u)" == 0 ]] || error_msg "please run this script as root: [ sudo ./${0} ]"
+[[ "$(id -u)" == "0" ]] || error_msg "please run this script as root: [ sudo ./${0} ]"
 
 # Initialize variables and download the kernel
 init_var "${@}"
-check_data
 # Find OpenWrt file
 find_openwrt
 # Download the dependency files
 download_depends
 # Query the latest kernel version
-[[ "${auto_kernel}" =~ ^(true|yes)$ ]] && query_kernel
+[[ "${auto_kernel}" == "true" ]] && query_version
 # Download the kernel files
 download_kernel
 
 # Show make settings
-echo -e "${INFO} [ ${#make_openwrt[@]} ] lists of OpenWrt board: [ $(echo ${make_openwrt[@]} | xargs) ]"
-echo -e "${INFO} Kernel Repo: [ ${kernel_repo} ], Kernel Usage: [ ${kernel_usage} ] \n"
+echo -e "${INFO} [ ${#make_openwrt[*]} ] lists of OpenWrt board: [ $(echo ${make_openwrt[*]} | xargs) ]"
 # Show server start information
-echo -e "${INFO} Server space usage before starting to compile: \n$(df -hT ${make_path}) \n"
+echo -e "${INFO} Server space usage before starting to compile: \n$(df -hT ${current_path}) \n"
 
 # Loop to make OpenWrt firmware
 loop_make
 
 # Show server end information
-echo -e "${STEPS} Server space usage after compilation: \n$(df -hT ${make_path}) \n"
+echo -e "${STEPS} Server space usage after compilation: \n$(df -hT ${current_path}) \n"
 echo -e "${SUCCESS} All process completed successfully."
+# All process completed
+wait

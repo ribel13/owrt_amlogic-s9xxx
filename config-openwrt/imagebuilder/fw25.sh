@@ -42,6 +42,9 @@ openwrt_dir="imagebuilder"
 imagebuilder_path="${make_path}/${openwrt_dir}"
 custom_files_path="${make_path}/config-openwrt/imagebuilder/files"
 custom_config_file="${make_path}/config-openwrt/imagebuilder/config"
+output_path="${make_path}/output"
+tmp_path="${imagebuilder_path}/tmp"
+unpack_path="${tmp_path}/unpacked_rootfs"
 
 # Set default parameters
 STEPS="[\033[95m STEPS \033[0m]"

@@ -79,9 +79,9 @@ firmware_repo="https://github.com/ophub/armbian_firmware/tree/main/firmware"
 firmware_repo="${firmware_repo//tree\/main/trunk}"
 
 # Install/Update script files download repository
-script_repo="https://github.com/ophub/luci-app-amlogic/tree/main/luci-app-amlogic/root/usr/sbin"
+# script_repo="https://github.com/ophub/luci-app-amlogic/tree/main/luci-app-amlogic/root/usr/sbin"
 # Convert script repository address to svn format
-script_repo="${script_repo//tree\/main/trunk}"
+# script_repo="${script_repo//tree\/main/trunk}"
 
 # Set the kernel download repository from github.com
 kernel_repo="https://github.com/ribel13/kernel"

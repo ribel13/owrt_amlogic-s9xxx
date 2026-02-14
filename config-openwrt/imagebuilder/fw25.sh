@@ -210,69 +210,11 @@ rebuild_firmware() {
     echo -e "${SUCCESS} The rebuild is successful, the current path: [ ${PWD} ]"
 }
 
-# Custom settings after rebuild
-custom_settings() {
-    cd ${imagebuilder_path}
-    echo -e "${STEPS} Start performing custom settings after rebuild..."
-
-    # Clean up temporary and output directories
-    [[ -d "${tmp_path}" ]] && rm -rf "${tmp_path:?}"/* || mkdir -p "${tmp_path}"
-    [[ -d "${output_path}" ]] && rm -rf "${output_path:?}"/* || mkdir -p "${output_path}"
-
-    # Find the original *rootfs.tar.gz file
-    original_archive="$(ls -1 bin/targets/*/*/*rootfs.tar.gz 2>/dev/null | head -n 1)"
-
-    # Check if the original archive exists
-    if [[ ! -f "${original_archive}" ]]; then
-        error_msg "No *rootfs.tar.gz found."
-    else
-        echo -e "${INFO} Processing: ${original_archive}"
-
-        # Get the filename and path
-        original_filename="$(basename "${original_archive}")"
-        original_path="$(dirname "${original_archive}")"
-
-        # Unpack the original archive
-        echo -e "${INFO} Unpacking ${original_filename}..."
-        mkdir -p "${unpack_path}"
-        tar -xzpf "${original_archive}" -C "${unpack_path}"
-
-        # Modify etc/openwrt_release
-        release_file="${unpack_path}/etc/openwrt_release"
-        if [[ -f "${release_file}" ]]; then
-            echo -e "${INFO} Modifying etc/openwrt_release..."
-            {
-                echo "DISTRIB_SOURCEREPO='github.com/${op_sourse}/${op_sourse}'"
-                echo "DISTRIB_SOURCECODE='${op_sourse}'"
-                echo "DISTRIB_SOURCEBRANCH='${op_branch}'"
-            } >>"${release_file}"
-        else
-            error_msg "${release_file} not found."
-        fi
-
-        # Repack the modified root filesystem
-        echo -e "${INFO} Repacking into ${original_filename}..."
-        (cd "${unpack_path}" && tar -czpf "${tmp_path}/${original_filename}" ./)
-
-        # Move the repacked archive to the output directory
-        echo -e "${INFO} Moving repacked OpenWrt rootfs file to output directory..."
-        mv -f "${tmp_path}/${original_filename}" "${output_path}/"
-        # Copy the config file to the output directory
-        cp -f .config "${output_path}/config" || true
-    fi
-
-    sync && sleep 3
-    cd ${make_path}
-    rm -rf "${imagebuilder_path}"
-    echo -e "${INFO} [ ${output_path} ] directory status: \n$(ls -lh ${output_path}/ -l 2>/dev/null)"
-    echo -e "${INFO} Modification successfully."
-}
-
 # Show welcome message
 echo -e "${STEPS} Welcome to Rebuild OpenWrt Using the Image Builder."
 [[ -x "${0}" ]] || error_msg "Please give the script permission to run: [ chmod +x ${0} ]"
 [[ -z "${1}" ]] && error_msg "Please specify the OpenWrt Branch, such as [ ${0} openwrt:24.10.1 ]"
-[[ "${1}" =~ ^[a-z]{3,}:[0-9]+ ]] || error_msg "Incoming parameter format <source:branch>: openwrt:24.10.1"
+[[ "${1}" =~ ^[a-z]{3,}:[0-9]+ ]] || error_msg "Incoming parameter format <source:branch>: openwrt:24.10.4"
 op_sourse="${1%:*}"
 op_branch="${1#*:}"
 echo -e "${INFO} Rebuild path: [ ${PWD} ]"

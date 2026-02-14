@@ -250,7 +250,6 @@ on:
         options:
           - stable
           - flippy
-          - beta
       openwrt_ip:
         description: "Set OpenWrt default IP address."
         required: false
@@ -262,7 +261,6 @@ on:
         type: choice
         options:
           - ophub
-          - angel
           - FRDMX
 
 env:

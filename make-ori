@@ -48,7 +48,7 @@
 current_path="${PWD}"
 tmp_path="${current_path}/tmp"
 out_path="${current_path}/out"
-# openwrt_path="${current_path}/openwrt-armvirt"
+openwrt_path="${current_path}/openwrt-armvirt"
 openwrt_path="${current_path}/openwrt-armsr"
 openwrt_rootfs_file="*rootfs.tar.gz"
 make_path="${current_path}/make-openwrt"

@@ -13,7 +13,7 @@ on:
       openwrt_board:
         description: "Select device board"
         required: false
-        default: "all"
+        default: "s905x"
         type: choice
         options:
           - all
@@ -60,7 +60,7 @@ on:
       openwrt_kernel:
         description: "Select kernel version"
         required: false
-        default: "5.15.1_6.1.1"
+        default: "6.6.y_6.12y"
         type: choice
         options:
           - 5.4.1_5.10.1_5.15.1
@@ -71,6 +71,7 @@ on:
           - 5.10.1
           - 5.15.1
           - 6.1.1
+          - 6.6.y_6.12.y
       auto_kernel:
         description: "Auto use the latest kernel"
         required: false
@@ -79,14 +80,15 @@ on:
       kernel_repo:
         description: "Set the kernel repository"
         required: false
-        default: "https://github.com/jerbe/armbian_kernel/tree/main/pub"
+        default: "ribel13/kernel"
       openwrt_size:
         description: "Set the rootfs size(Unit: MiB)"
         required: false
         default: "1024"
 
 env:
-  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  #REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_URL: https://github.com/openwrt/openwrt
   REPO_BRANCH: openwrt-21.02
   FEEDS_CONF: config-openwrt/immortalwrt-21.02/feeds.conf.default
   CONFIG_FILE: config-openwrt/immortalwrt-21.02/config
@@ -177,7 +179,7 @@ jobs:
           tag: ${{ steps.compile.outputs.build_tag }}
           artifacts: openwrt/bin/targets/*/*/*rootfs.tar.gz
           allowUpdates: true
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Clean up server space
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
@@ -188,7 +190,8 @@ jobs:
 
       - name: Build OpenWrt firmware
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
-        uses: jerbe/openwrt_amlogic-s9xxx@main
+        #uses: jerbe/openwrt_amlogic-s9xxx@main
+        uses: ophub/openwrt_amlogic-s9xxx@main
         with:
           openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
           openwrt_board: ${{ inputs.openwrt_board }}
@@ -205,7 +208,7 @@ jobs:
           tag: ${{ steps.compile.outputs.build_tag }}
           artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
           allowUpdates: true
-          token: ${{ secrets.GH_TOKEN }}
+          token: ${{ secrets.RELEASES_TOKEN }}
           body: |
             This is OpenWrt firmware for Amlogic and Rockchip
             * Firmware information

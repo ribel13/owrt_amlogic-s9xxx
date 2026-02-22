@@ -178,26 +178,26 @@ rebuild_firmware() {
     # sorting by https://build.moz.one
     my_packages="\
         acpid attr base-files bash bc bind-server blkid block-mount blockd bsdtar \
-        btrfs-progs busybox bzip2 cgi-io chattr comgt comgt-ncm containerd coremark \
-        coreutils coreutils-base64 coreutils-nohup coreutils-truncate curl docker \
-        docker-compose dockerd dosfstools dumpe2fs e2freefrag e2fsprogs exfat-mkfs \
-        f2fs-tools f2fsck fdisk gawk getopt gzip hostapd-common iconv iw iwinfo jq jshn \
-        kmod-brcmfmac kmod-brcmutil kmod-cfg80211 kmod-mac80211 libjson-script \
+        btrfs-progs busybox bzip2 cgi-io chattr comgt comgt-ncm coremark \
+        coreutils coreutils-base64 coreutils-nohup coreutils-truncate curl tcdump \
+        dosfstools dumpe2fs e2freefrag e2fsprogs exfat-mkfs \
+        f2fs-tools f2fsck fdisk gawk getopt gzip iconv jq jshn \
+        kmod-brcmfmac kmod-brcmutil libjson-script kmod-usb-net-rndis \
         liblucihttp liblucihttp-lua libnetwork losetup lsattr lsblk lscpu mkf2fs \
         mount-utils openssl-util parted perl-http-date perlbase-file perlbase-getopt \
         perlbase-time perlbase-unicode perlbase-utf8 pigz ppp ppp-mod-pppoe \
         proto-bonding pv rename resize2fs runc subversion-client subversion-libs tar \
         tini ttyd tune2fs uclient-fetch uhttpd uhttpd-mod-ubus unzip uqmi usb-modeswitch \
-        uuidgen wget-ssl whereis which wpad-basic wwan xfs-fsck xfs-mkfs xz \
+        uuidgen wget-ssl whereis which wwan xfs-fsck xfs-mkfs xz \
         xz-utils ziptool zoneinfo-asia zoneinfo-core zstd \
         \
-        luci luci-base luci-compat luci-i18n-base-en luci-i18n-base-zh-cn luci-lib-base  \
-        luci-lib-docker luci-lib-ip luci-lib-ipkg luci-lib-jsonc luci-lib-nixio  \
-        luci-mod-admin-full luci-mod-network luci-mod-status luci-mod-system  \
-        luci-proto-3g luci-proto-bonding luci-proto-ipip luci-proto-ipv6 luci-proto-ncm  \
-        luci-proto-openconnect luci-proto-ppp luci-proto-qmi luci-proto-relay  \
-        \
-        luci-app-amlogic luci-i18n-amlogic-zh-cn \
+        luci luci-compat luci-lib-base kmod-usb-net-huawei-cdc-ncm kmod-usb-net \
+        luci-lib-ip luci-lib-ipkg luci-lib-jsonc luci-lib-nixio luci-mod-admin-full luci-mod-network \
+        luci-mod-status luci-mod-system luci-proto-3g luci-proto-mbim mbim-utils \
+        luci-proto-ncm luci-proto-ppp luci-proto-qmi screen kmod-tun \
+        kmod-usb-wdm kmod-usb-net-qmi-wwan luci-proto-qmi kmod-usb-net-cdc-ether \
+        kmod-usb-serial-option kmod-usb-serial kmod-usb-serial-wwan qmi-utils kmod-usb-serial-qualcomm \
+        kmod-usb-net-cdc-ncm kmod-usb-net-cdc-mbim umbim modemmanager \
         \
         ${config_list} \
         "
@@ -213,8 +213,10 @@ rebuild_firmware() {
 # Show welcome message
 echo -e "${STEPS} Welcome to Rebuild OpenWrt Using the Image Builder."
 [[ -x "${0}" ]] || error_msg "Please give the script permission to run: [ chmod +x ${0} ]"
-[[ -z "${1}" ]] && error_msg "Please specify the OpenWrt Branch, such as [ ${0} openwrt:22.03.3 ]"
-[[ "${1}" =~ ^[a-z]{3,}:[0-9]+ ]] || error_msg "Incoming parameter format <source:branch>: openwrt:22.03.3"
+#[[ -z "${1}" ]] && error_msg "Please specify the OpenWrt Branch, such as [ ${0} openwrt:22.03.3 ]"
+#[[ "${1}" =~ ^[a-z]{3,}:[0-9]+ ]] || error_msg "Incoming parameter format <source:branch>: openwrt:22.03.3"
+[[ -z "${1}" ]] && error_msg "Please specify the OpenWrt Branch, such as [ ${0} openwrt:21.02.7 ]"
+[[ "${1}" =~ ^[a-z]{3,}:[0-9]+ ]] || error_msg "Incoming parameter format <source:branch>: openwrt:21.02.7"
 op_sourse="${1%:*}"
 op_branch="${1#*:}"
 echo -e "${INFO} Rebuild path: [ ${PWD} ]"

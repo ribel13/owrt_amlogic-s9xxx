@@ -80,7 +80,7 @@ on:
       kernel_repo:
         description: "Set the kernel repository"
         required: false
-        default: "ribel13/kernel"
+        default: "https://github.com/ribel13/kernel"
       openwrt_size:
         description: "Set the rootfs size(Unit: MiB)"
         required: false
@@ -205,7 +205,7 @@ jobs:
       - name: Build OpenWrt firmware
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
         #uses: jerbe/openwrt_amlogic-s9xxx@main
-        uses: ophub/openwrt_amlogic-s9xxx@main
+        uses: ophub/amlogic-s9xxx-openwrt@main
         with:
           openwrt_path: openwrt/bin/targets/*/*/*rootfs.tar.gz
           openwrt_board: ${{ inputs.openwrt_board }}
